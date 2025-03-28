@@ -202,8 +202,8 @@ config:
     [OUTPUT]
         Name  es
         Match *
-        Host  10.43.99.126
-        Port  9200
+        Host  192.168.1.103
+        Port  31416
         Index pi
         Suppress_Type_name On
         Trace_Error On
