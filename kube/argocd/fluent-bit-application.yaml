@@ -17,7 +17,7 @@ spec:
     targetRevision: 0.48.9
   - ref: values
     repoURL: https://github.com/Gingercookie/homelab.git
-    targetRevision: add-kube-manifests
+    targetRevision: main
   syncPolicy:
     automated:
       prune: true
