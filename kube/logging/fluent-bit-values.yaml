@@ -209,6 +209,8 @@ config:
         Trace_Error On
         tls On
         tls.verify Off
+        HTTP_User elastic
+        HTTP_Passwd A9An9YL684sLu3xyQOH941c6
 
   # [OUTPUT]
   #     Name es
