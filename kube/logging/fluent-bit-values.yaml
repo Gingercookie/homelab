@@ -207,6 +207,8 @@ config:
         Index pi
         Suppress_Type_name On
         Trace_Error On
+        tls On
+        tls.verify Off
 
   # [OUTPUT]
   #     Name es
