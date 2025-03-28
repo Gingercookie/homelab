@@ -202,8 +202,8 @@ config:
     [OUTPUT]
         Name  es
         Match *
-        Host  192.168.1.103
-        Port  31416
+        Host  elastic-es-http.logging.svc.cluster.local
+        Port  9200
         Index pi
         Suppress_Type_name On
         Trace_Error On

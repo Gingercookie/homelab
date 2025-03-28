@@ -12,7 +12,3 @@ spec:
     count: 1
     config:
       node.store.allow_mmap: false
-  transport:
-    service:
-      spec:
-        type: LoadBalancer
