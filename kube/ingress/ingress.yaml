@@ -74,8 +74,6 @@ kind: Ingress
 metadata:
   name: apps
   namespace: logging
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-staging
 spec:
   ingressClassName: traefik
   tls:
