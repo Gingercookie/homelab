@@ -1,0 +1,61 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-ngnf
+  namespace: default
+spec:
+  secretName: wildcard-ngnf-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - nogearnofalls.com
+    - '*.nogearnofalls.com'
+
+---
+
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-ngnf
+  namespace: argocd
+spec:
+  secretName: wildcard-ngnf-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - nogearnofalls.com
+    - '*.nogearnofalls.com'
+
+---
+
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-ngnf
+  namespace: vault
+spec:
+  secretName: wildcard-ngnf-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - nogearnofalls.com
+    - '*.nogearnofalls.com'
+
+---
+
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-ngnf
+  namespace: logging
+spec:
+  secretName: wildcard-ngnf-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - nogearnofalls.com
+    - '*.nogearnofalls.com'
