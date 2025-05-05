@@ -1,10 +1,10 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: wildcard-ngnf
+  name: wildcard
   namespace: default
 spec:
-  secretName: wildcard-ngnf-tls
+  secretName: wildcard-tls
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
@@ -17,10 +17,10 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: wildcard-ngnf
+  name: wildcard
   namespace: argocd
 spec:
-  secretName: wildcard-ngnf-tls
+  secretName: wildcard-tls
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
@@ -33,10 +33,10 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: wildcard-ngnf
+  name: wildcard
   namespace: vault
 spec:
-  secretName: wildcard-ngnf-tls
+  secretName: wildcard-tls
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
@@ -49,10 +49,10 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: wildcard-ngnf
+  name: wildcard
   namespace: logging
 spec:
-  secretName: wildcard-ngnf-tls
+  secretName: wildcard-tls
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
