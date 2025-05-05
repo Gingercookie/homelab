@@ -1,8 +1,8 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: apps
-  namespace: default
+  name: grafana
+  namespace: monitoring
 spec:
   tls:
     - hosts:
@@ -26,7 +26,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: apps
+  name: kibana
   namespace: logging
 spec:
   ingressClassName: traefik
