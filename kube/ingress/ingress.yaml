@@ -27,27 +27,6 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: apps
-  namespace: vault
-spec:
-  ingressClassName: traefik
-  rules:
-    - host: vault.wgraham.io
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: vault
-                port:
-                  number: 8200
-
----
-
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: apps
   namespace: logging
 spec:
   ingressClassName: traefik
