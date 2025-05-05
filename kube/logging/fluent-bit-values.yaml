@@ -210,7 +210,7 @@ config:
         tls On
         tls.verify Off
         HTTP_User elastic
-        HTTP_Passwd A9An9YL684sLu3xyQOH941c6
+        HTTP_Passwd 9HCR9APgCqK02FY69x79k2F3
 
   # [OUTPUT]
   #     Name es
