@@ -6,11 +6,11 @@ metadata:
 spec:
   tls:
     - hosts:
-      - grafana.nogearnofalls.com
-      secretName: wildcard-ngnf-tls
+      - grafana.wgraham.io
+      secretName: wildcard-tls
   ingressClassName: traefik
   rules:
-    - host: grafana.nogearnofalls.com
+    - host: grafana.wgraham.io
       http:
         paths:
           - path: /
@@ -31,11 +31,11 @@ metadata:
 spec:
   tls:
     - hosts:
-      - argocd.nogearnofalls.com
-      secretName: wildcard-ngnf-tls
+      - argocd.wgraham.io
+      secretName: wildcard-tls
   ingressClassName: traefik
   rules:
-    - host: argocd.nogearnofalls.com
+    - host: argocd.wgraham.io
       http:
         paths:
           - path: /
@@ -56,7 +56,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: vault.nogearnofalls.com
+    - host: vault.wgraham.io
       http:
         paths:
           - path: /
@@ -78,10 +78,10 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-      - kibana.nogearnofalls.com
-      secretName: wildcard-ngnf-tls
+      - kibana.wgraham.io
+      secretName: wildcard-tls
   rules:
-    - host: kibana.nogearnofalls.com
+    - host: kibana.wgraham.io
       http:
         paths:
           - path: /
