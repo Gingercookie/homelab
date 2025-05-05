@@ -1,6 +1,3 @@
-Various things for my home lab
-
-
 # Cluster Install
 ## K3s Install
 [K3s quick-start guide](https://docs.k3s.io/quick-start)
