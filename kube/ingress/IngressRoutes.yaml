@@ -1,0 +1,20 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: argocd-server
+  namespace: argocd
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`argocd.wgraham.io`)
+      kind: Rule
+      services:
+        - name: argocd-server
+          namespace: argocd
+          port: 443
+          scheme: https
+          serversTransport: argocd-insecure-transport
+  tls:
+    # your wildcard cert lives as a Secret in this namespace
+    secretName: wildcard-tls
