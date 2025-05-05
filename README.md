@@ -109,14 +109,18 @@ After doing this, make sure to update the password in the `logging/fluent-bit-va
 ## ArgoCD
 [ArgoCD quick-start guide](https://argo-cd.readthedocs.io/en/stable/getting_started/)
 
+```
 kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+```
 
 ### TLS Configuration
 If you have already created certificates in all namespaces,
+```
 kubectl get secret -n argocd wildcard-tls -o json | jq -r '.data."tls.key"' | base64 -d > tls.key
 kubectl get secret -n argocd wildcard-tls -o json | jq -r '.data."tls.crt"' | base64 -d > tls.crt
 kubectl create -n argocd secret tls argocd-server-tls --cert=tls.crt --key=tls.key
+```
 
 ### Argo-managed apps
 `kubectl apply -f <yamls-in-argocd-dir>`
