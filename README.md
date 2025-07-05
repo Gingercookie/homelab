@@ -10,10 +10,33 @@ tls-san:
   - "wgraham.io"
 ```
 
-and run `curl -sfL https://get.k3s.io | sh -s -`
+and run
+
+```
+# Default flannel CNI
+curl -sfL https://get.k3s.io | sh -s -
+
+# Setup to BYO CNI (cilium, etc)
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--flannel-backend=none --disable-network-policy' sh -
+```
 
 Get the token from the server to join the clients
 `cat /var/lib/rancher/k3s/server/node-token`
+
+Update your local kubeconfig
+
+```
+scp will@192.168.1.101:/etc/rancher/k3s/k3s.yaml k3s.yaml
+yq '.clusters[0].cluster.certificate-authority-data' k3s.yaml | base64 -d > cluster-ca-data.crt
+yq '.users[0].user.client-certificate-data' k3s.yaml | base64 -d > client-cert-data.crt
+yq '.users[0].user.client-key-data' k3s.yaml | base64 -d > client-key-data.key
+
+kubectl config set-cluster pi --server=https://wgraham.io:6443
+kubectl config set-cluster pi --embed-certs --certificate-authority='cluster-ca-data.crt'
+kubectl config set-credentials pi --embed-certs --client-certificate='client-cert-data.crt'
+kubectl config set-credentials pi --embed-certs --client-key='client-key-data.key'
+kubectl config set-context pi --cluster='pi' --user='pi'
+```
 
 ### Agents
 Run this on each one
@@ -36,26 +59,16 @@ kubectl create ns cert-manager
 [Getting started guide](https://cert-manager.io/docs/installation/)
 
 To install, run
-`kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.17.2/cert-manager.yaml`
+`kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml`
 
 After installing, check that it's working with `cmctl check api` (available via brew).
 
-Then create a secret with your Cloudflare key, e.g.
+Then create a secret with your Cloudflare key, e.g. `kaf cert-manager/secret.yaml`. This will allow cert-manager to use your cloudflare token on your behalf to make certificate issuing requests.
 
+Test out the token validity, clusterissuer, and certificate files by doing this in staging first, where there are are not strict rate limits.
 ```
-apiVersion: v1
-kind: Secret
-metadata:
-  name: cloudflare-api-token-secret
-  namespace: cert-manager
-type: Opaque
-stringData:
-  api-token: <API_TOKEN>
+kubectl apply -f cert-manager/staging
 ```
-
-Now you can provision the `staging` and `prod` Cluster Issuers.
-
-Once these have been created, you can finally provision the `ceritificates.yaml`. These take a few minutes to fully provision. Also, there are strict rate limits on the prod certificates, so only do these if you're sure the setup is good already.
 
 Check status with
 ```
@@ -68,6 +81,14 @@ kubectl describe order ...
 kubectl get challenge ...
 kubectl describe challenge ...
 ```
+
+Once you've verified the certificates are provisioned and working correctly (it may take 5-10 minutes for the certificates to be ready), delete the staging ones and issue the prod ones.
+```
+kubectl delete -f cert-manager/staging
+kubectl apply -f cert-manager/prod
+```
+
+TODO - This is where I left off. Was looking at installing external secrets operator so that I can remove my cloudflare api token from ^^ steps and put in AWS or something instead
 
 ## Traefik Ingress
 
