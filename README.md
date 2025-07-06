@@ -63,7 +63,9 @@ To install, run
 
 After installing, check that it's working with `cmctl check api` (available via brew).
 
-Then create a secret with your Cloudflare key, e.g. `kaf cert-manager/secret.yaml`. This will allow cert-manager to use your cloudflare token on your behalf to make certificate issuing requests.
+:warn: Get a Cloudflare API token that has permission to update domain DNS records on your behalf. Make sure to not commit it to git :warn:
+
+Create a secret with your Cloudflare key, e.g. `kaf cert-manager/secret.yaml`. This will allow cert-manager to use your cloudflare token on your behalf to make certificate issuing requests.
 
 Test out the token validity, clusterissuer, and certificate files by doing this in staging first, where there are are not strict rate limits.
 ```
@@ -87,8 +89,6 @@ Once you've verified the certificates are provisioned and working correctly (it 
 kubectl delete -f cert-manager/staging
 kubectl apply -f cert-manager/prod
 ```
-
-TODO - This is where I left off. Was looking at installing external secrets operator so that I can remove my cloudflare api token from ^^ steps and put in AWS or something instead
 
 ## Traefik Ingress
 
