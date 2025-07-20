@@ -92,18 +92,18 @@ kubectl apply -f cert-manager/prod
 
 ## Traefik Ingress
 
-Make sure you install CRDs first
-`kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v3.3/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml`
-
-For most services, you can now do straight up TLS with the certs that were provisioned earlier with cert-manager. ArgoCD is a bit different though because the service itself expects a certificate. Since the certificate created by cert-manager doesn't include any IP SANs of the pods (`10.42.x.x`), the TLS will fail when traefik tries to redirect to ArgoCD-Server.
-
-To get around this, we need to create a `ServersTransport` CRD to tell Traefik to skip TLS on the backend when communicating with the ArgoCD Server.
-
 ```
+helm repo add traefik https://traefik.github.io/charts
+helm repo update
+helm install traefik traefik/traefik -f ingress/traefik-values.yaml --wait
 kubectl apply -f argocd-server-transport
 kubectl apply -f IngressRoutes.yaml
 kubectl apply -f ingress.yaml
 ```
+
+For most services, you can now do straight up TLS with the certs that were provisioned earlier with cert-manager. ArgoCD is a bit different though because the service itself expects a certificate. Since the certificate created by cert-manager doesn't include any IP SANs of the pods (`10.42.x.x`), the TLS will fail when traefik tries to redirect to ArgoCD-Server.
+
+To get around this, we need to create a `ServersTransport` CRD to tell Traefik to skip TLS on the backend when communicating with the ArgoCD Server.
 
 ## ElasticSearch
 [Install ECK with manifests](https://www.elastic.co/docs/deploy-manage/deploy/cloud-on-k8s/install-using-yaml-manifest-quickstart)
