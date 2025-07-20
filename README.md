@@ -105,6 +105,23 @@ For most services, you can now do straight up TLS with the certs that were provi
 
 To get around this, we need to create a `ServersTransport` CRD to tell Traefik to skip TLS on the backend when communicating with the ArgoCD Server.
 
+## Grafana
+This one is pretty fully baked using the community helm charts
+
+Add the helm repo and install
+```
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm upgrade --install -n monitoring kube-prometheus prometheus-community/kube-prometheus-stack --set grafana.adminPassword="<password>"
+```
+
+# Security
+
+The ingresses that I have set up are not accessible via the public DNS because I have the ports disabled through the dream machine. You have to enable the ports for ingress to work.
+
+Grafana has "my password" set.
+
+TODO - below this line
+
 ## ElasticSearch
 [Install ECK with manifests](https://www.elastic.co/docs/deploy-manage/deploy/cloud-on-k8s/install-using-yaml-manifest-quickstart)
 
@@ -149,16 +166,3 @@ For fluent-bit, make sure elasticsearch is set up already though
 Just `kaf` the `vault.yaml` bruh.
 
 Gonna actually not expose the ingress for this one, and might eventually take it out. Not even sure if Caddy needs to be running anymore.
-
-## Grafana
-This one is pretty fully baked using the community helm charts
-
-Add the helm repo and install
-```
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm install -n monitoring kube-prometheus prometheus-community/kube-prometheus-stack
-```
-
-# Security
-
-For now, the `grafana` and `kibana` ingresses are disabled (uninstall them) because they don't have secure configs. Once this is fixed we can expose them, but for now I'm not comfortable doing that.
