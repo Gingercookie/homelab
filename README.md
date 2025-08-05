@@ -120,27 +120,6 @@ The ingresses that I have set up are not accessible via the public DNS because I
 
 Grafana has "my password" set.
 
-TODO - below this line
-
-## ElasticSearch
-[Install ECK with manifests](https://www.elastic.co/docs/deploy-manage/deploy/cloud-on-k8s/install-using-yaml-manifest-quickstart)
-
-First, install CRDS and the operator
-
-```
-kubectl create -f https://download.elastic.co/downloads/eck/3.0.0/crds.yaml
-kubectl apply -f https://download.elastic.co/downloads/eck/3.0.0/operator.yaml
-```
-
-Now we can apply the local elasic and kibana manifests
-
-```
-kubectl apply -f elasticsearch.yaml
-kubectl apply -f kibana.yaml
-```
-
-After doing this, make sure to update the password in the `logging/fluent-bit-values.yaml` so the pods can authenticate. Password can be obtained with `kubectl get secret -n logging elastic-es-elastic-user -o json | jq -r '.data."elastic"' | base64 -d`
-
 ## ArgoCD
 [ArgoCD quick-start guide](https://argo-cd.readthedocs.io/en/stable/getting_started/)
 
@@ -161,6 +140,27 @@ kubectl create -n argocd secret tls argocd-server-tls --cert=tls.crt --key=tls.k
 `kubectl apply -f <yamls-in-argocd-dir>`
 
 For fluent-bit, make sure elasticsearch is set up already though
+
+TODO - below this line
+
+## ElasticSearch
+[Install ECK with manifests](https://www.elastic.co/docs/deploy-manage/deploy/cloud-on-k8s/install-using-yaml-manifest-quickstart)
+
+First, install CRDS and the operator
+
+```
+kubectl create -f https://download.elastic.co/downloads/eck/3.0.0/crds.yaml
+kubectl apply -f https://download.elastic.co/downloads/eck/3.0.0/operator.yaml
+```
+
+Now we can apply the local elasic and kibana manifests
+
+```
+kubectl apply -f elasticsearch.yaml
+kubectl apply -f kibana.yaml
+```
+
+After doing this, make sure to update the password in the `logging/fluent-bit-values.yaml` so the pods can authenticate. Password can be obtained with `kubectl get secret -n logging elastic-es-elastic-user -o json | jq -r '.data."elastic"' | base64 -d`
 
 ## Vault
 Just `kaf` the `vault.yaml` bruh.
