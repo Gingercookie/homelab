@@ -1,0 +1,34 @@
+# manifests/ship-service-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ship-service
+  namespace: planet-express
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ship-service
+  template:
+    metadata:
+      labels:
+        app: ship-service
+    spec:
+      containers:
+        - name: ship-service
+          image: wilgrimthepilgrim/ship:latest
+          ports:
+            - containerPort: 8080
+          imagePullPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ship-service
+  namespace: planet-express
+spec:
+  selector:
+    app: ship-service
+  ports:
+    - port: 80
+      targetPort: 8080

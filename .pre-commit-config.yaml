@@ -1,0 +1,55 @@
+# This is a .pre-commit-config.yaml file that uses standard pre-commit hooks
+# Users should add this to their repository as .pre-commit-config.yaml
+
+repos:
+  # General hooks from pre-commit-hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: mixed-line-ending
+
+  # Bash/Shell hooks
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.6
+    hooks:
+      - id: shellcheck
+        args: ['--severity=error']
+
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.12.0-2
+    hooks:
+      - id: shfmt
+        args: [-w, -s, -i, '2']
+
+  # YAML hooks
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: [-c=.yamllint.yaml]
+
+  # Markdown hooks
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.39.0
+    hooks:
+      - id: markdownlint
+        args: [--fix]
+
+  - repo: https://github.com/tcort/markdown-link-check
+    rev: v3.14.2
+    hooks:
+      - id: markdown-link-check
+
+  # Go hooks
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-fmt
+      # - id: go-vet
+      # - id: go-imports
+      # - id: go-mod-tidy

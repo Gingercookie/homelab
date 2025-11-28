@@ -1,0 +1,33 @@
+# manifests/crew-service-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crew-service
+  namespace: planet-express
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crew-service
+  template:
+    metadata:
+      labels:
+        app: crew-service
+    spec:
+      containers:
+        - name: crew-service
+          image: wilgrimthepilgrim/crew:latest
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: crew-service
+  namespace: planet-express
+spec:
+  selector:
+    app: crew-service
+  ports:
+    - port: 80
+      targetPort: 8080

@@ -1,0 +1,8 @@
+---
+extends: default
+ignore: |
+  charts/*/templates/
+rules:
+  line-length: disable
+  comments: disable
+  document-start: disable
