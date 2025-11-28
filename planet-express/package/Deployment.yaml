@@ -1,0 +1,33 @@
+# manifests/package-service-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: package-service
+  namespace: planet-express
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: package-service
+  template:
+    metadata:
+      labels:
+        app: package-service
+    spec:
+      containers:
+        - name: package-service
+          image: wilgrimthepilgrim/package:latest
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: package-service
+  namespace: planet-express
+spec:
+  selector:
+    app: package-service
+  ports:
+    - port: 80
+      targetPort: 8080

@@ -1,0 +1,41 @@
+# manifests/delivery-service-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: delivery-service
+  namespace: planet-express
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: delivery-service
+  template:
+    metadata:
+      labels:
+        app: delivery-service
+    spec:
+      containers:
+        - name: delivery-service
+          image: wilgrimthepilgrim/delivery:latest
+          env:
+            - name: CREW_SERVICE_URL
+              value: "http://crew-service"
+            - name: SHIP_SERVICE_URL
+              value: "http://ship-service"
+            - name: PACKAGE_SERVICE_URL
+              value: "http://package-service"
+          ports:
+            - containerPort: 8080
+          imagePullPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: delivery-service
+  namespace: planet-express
+spec:
+  selector:
+    app: delivery-service
+  ports:
+    - port: 80
+      targetPort: 8080

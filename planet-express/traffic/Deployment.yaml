@@ -1,0 +1,24 @@
+# manifests/delivery-simulator-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: delivery-simulator
+  namespace: planet-express
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: delivery-simulator
+  template:
+    metadata:
+      labels:
+        app: delivery-simulator
+    spec:
+      containers:
+        - name: delivery-simulator
+          image: wilgrimthepilgrim/traffic:latest
+          env:
+            - name: API_URL
+              value: "http://planetexpress-api/deliveries"
+            - name: INTERVAL_SECONDS
+              value: "5"
