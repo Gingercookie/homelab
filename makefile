@@ -96,7 +96,7 @@ workers:
 
 ## Install Cilium CNI
 cilium:
-	@echo -e "$(BLUE)=== Installing Cilium CNI ===$(NC)"
+	@echo "$(BLUE)=== Installing Cilium CNI ===$(NC)"
 	@echo "Installing Cilium CLI..."
 	@ssh $(SSH_OPTS) -i $(SSH_KEY) $(SSH_USER)@$(SERVER_IP) " \
 		CILIUM_CLI_VERSION=\$$(curl -s https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt); \
@@ -109,13 +109,24 @@ cilium:
 	@echo "Installing Cilium on cluster..."
 	@ssh $(SSH_OPTS) -i $(SSH_KEY) $(SSH_USER)@$(SERVER_IP) " \
 		export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; \
-		cilium install --version 1.16.5" \
+		cilium install --version 1.16.5 \
+			--set k8sServiceHost=$(SERVER_IP) \
+			--set k8sServicePort=6443 \
+			--wait" \
 		&& echo "$(GREEN)✓ Cilium installed$(NC)" || echo "$(RED)✗ Failed$(NC)"
-	@echo "Waiting for Cilium to be ready..."
+	@echo "Waiting for Cilium to be ready on all nodes..."
 	@ssh $(SSH_OPTS) -i $(SSH_KEY) $(SSH_USER)@$(SERVER_IP) " \
 		export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; \
+		kubectl rollout status daemonset/cilium -n kube-system --timeout=5m; \
 		cilium status --wait" \
 		&& echo "$(GREEN)✓ Cilium is ready$(NC)" || echo "$(RED)✗ Failed$(NC)"
+
+uninstall-cilium:
+	@echo "$(BLUE)=== Uninstalling Cilium ===$(NC)"
+	@ssh $(SSH_OPTS) -i $(SSH_KEY) $(SSH_USER)@$(SERVER_IP) " \
+		export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; \
+		cilium uninstall" \
+		&& echo "$(GREEN)✓ Cilium uninstalled$(NC)" || echo "$(RED)✗ Failed$(NC)"
 
 ## Download kubeconfig and add as 'pi' context
 kubeconfig:
@@ -190,10 +201,12 @@ help:
 	@echo -e "  $(YELLOW)make control-plane$(NC)          - Install control plane only"
 	@echo -e "  $(YELLOW)make workers$(NC)                - Install workers only"
 	@echo -e "  $(YELLOW)make cilium$(NC)                 - Install Cilium CNI"
+	@echo -e "  $(YELLOW)make uninstall-cilium$(NC)       - Uninstall Cilium CNI"
 	@echo -e "  $(YELLOW)make uninstall-all$(NC)          - Uninstall k3s from all nodes"
 	@echo -e "  $(YELLOW)make uninstall-control-plane$(NC) - Uninstall from control plane"
 	@echo -e "  $(YELLOW)make uninstall-workers$(NC)      - Uninstall from workers"
 	@echo -e "  $(YELLOW)make status$(NC)                 - Check cluster status"
+	@echo -e "  $(YELLOW)make kubeconfig$(NC)             - Update and merge local kubeconfig with pi config"
 	@echo -e "  $(YELLOW)make help$(NC)                   - Show this help message"
 	@echo -e ""
 	@echo -e "$(BLUE)Configuration:$(NC)"
