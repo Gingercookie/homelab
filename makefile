@@ -24,7 +24,8 @@ NC := $(shell tput sgr0 2>/dev/null) # No Color
 # Force shell to be bash for color support
 SHELL := /bin/bash
 
-.PHONY: all control-plane workers cilium uninstall-all uninstall-control-plane uninstall-workers update-all configure-system help status
+.PHONY: all control-plane workers cilium uninstall-all uninstall-control-plane uninstall-workers uninstall-cilium update-all configure-locales kubeconfig argocd argocd-port-forward argocd-password uninstall-argocd restart-workers help status
+
 
 ## Default target
 all: update-all configure-system control-plane cilium workers
@@ -178,6 +179,67 @@ uninstall-control-plane:
 			echo '$(YELLOW)k3s not installed$(NC)'; \
 		fi"
 
+## Install ArgoCD
+argocd:
+	@echo "$(BLUE)=== Installing ArgoCD ===$(NC)"
+	@echo "Creating argocd namespace..."
+	@ssh $(SSH_OPTS) -i $(SSH_KEY) $(SSH_USER)@$(SERVER_IP) " \
+		export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; \
+		kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -" \
+		&& echo "$(GREEN)✓ Namespace created$(NC)" || echo "$(RED)✗ Failed$(NC)"
+	@echo "Applying ArgoCD manifests..."
+	@ssh $(SSH_OPTS) -i $(SSH_KEY) $(SSH_USER)@$(SERVER_IP) " \
+		export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; \
+		kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml" \
+		&& echo "$(GREEN)✓ Manifests applied$(NC)" || echo "$(RED)✗ Failed$(NC)"
+	@echo "Waiting for ArgoCD to be ready (this may take a few minutes)..."
+	@ssh $(SSH_OPTS) -i $(SSH_KEY) $(SSH_USER)@$(SERVER_IP) " \
+		export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; \
+		kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd" \
+		&& echo "$(GREEN)✓ ArgoCD is ready$(NC)" || echo "$(RED)✗ Failed$(NC)"
+	@echo ""
+	@echo "$(GREEN)=== ArgoCD Installation Complete ===$(NC)"
+	@echo "$(BLUE)Initial admin password:$(NC)"
+	@ssh $(SSH_OPTS) -i $(SSH_KEY) $(SSH_USER)@$(SERVER_IP) " \
+		export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; \
+		kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo ''"
+	@echo ""
+	@echo "$(BLUE)Access ArgoCD UI:$(NC)"
+	@echo "  1. Run: kubectl port-forward svc/argocd-server -n argocd 8080:443"
+	@echo "  2. Open: https://localhost:8080"
+	@echo "  3. Login with username: $(YELLOW)admin$(NC) and password above"
+	@echo ""
+	@echo "$(YELLOW)Or use: make argocd-port-forward$(NC)"
+
+## Port-forward ArgoCD UI to localhost
+argocd-port-forward:
+	@echo "$(BLUE)=== Port-forwarding ArgoCD UI ===$(NC)"
+	@echo "$(YELLOW)ArgoCD will be available at: https://localhost:8080$(NC)"
+	@echo "$(YELLOW)Username: admin$(NC)"
+	@echo "$(BLUE)Password:$(NC)"
+	@ssh $(SSH_OPTS) -i $(SSH_KEY) $(SSH_USER)@$(SERVER_IP) " \
+		export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; \
+		kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo ''"
+	@echo ""
+	@echo "$(YELLOW)Press Ctrl+C to stop port-forwarding$(NC)"
+	@kubectl port-forward svc/argocd-server -n argocd 8080:443
+
+## Get ArgoCD admin password
+argocd-password:
+	@echo "$(BLUE)ArgoCD admin password:$(NC)"
+	@ssh $(SSH_OPTS) -i $(SSH_KEY) $(SSH_USER)@$(SERVER_IP) " \
+		export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; \
+		kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo ''"
+
+## Uninstall ArgoCD
+uninstall-argocd:
+	@echo "$(BLUE)=== Uninstalling ArgoCD ===$(NC)"
+	@ssh $(SSH_OPTS) -i $(SSH_KEY) $(SSH_USER)@$(SERVER_IP) " \
+		export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; \
+		kubectl delete -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml; \
+		kubectl delete namespace argocd" \
+		&& echo "$(GREEN)✓ ArgoCD uninstalled$(NC)" || echo "$(RED)✗ Failed$(NC)"
+
 ## Uninstall k3s from all nodes
 uninstall-all: uninstall-workers uninstall-control-plane
 	@echo -e "$(GREEN)✓ k3s uninstalled from all nodes$(NC)"
@@ -192,24 +254,24 @@ status:
 
 ## Show help
 help:
-	@echo -e "$(BLUE)k3s Cluster Management Makefile$(NC)"
-	@echo -e ""
-	@echo -e "$(GREEN)Available targets:$(NC)"
-	@echo -e "  $(YELLOW)make all$(NC)                    - Full cluster setup (default)"
-	@echo -e "  $(YELLOW)make update-all$(NC)             - Update all nodes"
-	@echo -e "  $(YELLOW)make configure-system$(NC)       - Configure system settings"
-	@echo -e "  $(YELLOW)make control-plane$(NC)          - Install control plane only"
-	@echo -e "  $(YELLOW)make workers$(NC)                - Install workers only"
-	@echo -e "  $(YELLOW)make cilium$(NC)                 - Install Cilium CNI"
-	@echo -e "  $(YELLOW)make uninstall-cilium$(NC)       - Uninstall Cilium CNI"
-	@echo -e "  $(YELLOW)make uninstall-all$(NC)          - Uninstall k3s from all nodes"
-	@echo -e "  $(YELLOW)make uninstall-control-plane$(NC) - Uninstall from control plane"
-	@echo -e "  $(YELLOW)make uninstall-workers$(NC)      - Uninstall from workers"
-	@echo -e "  $(YELLOW)make status$(NC)                 - Check cluster status"
-	@echo -e "  $(YELLOW)make kubeconfig$(NC)             - Update and merge local kubeconfig with pi config"
-	@echo -e "  $(YELLOW)make help$(NC)                   - Show this help message"
-	@echo -e ""
-	@echo -e "$(BLUE)Configuration:$(NC)"
-	@echo -e "  Control Plane: p1 ($(SERVER_IP))"
-	@echo -e "  Workers: p2 ($(word 1,$(AGENT_IPS))), p3 ($(word 2,$(AGENT_IPS)))"
-	@echo -e "  k3s Version: $(K3S_VERSION)"
+	@echo "$(BLUE)k3s Cluster Management Makefile$(NC)"
+	@echo ""
+	@echo "$(GREEN)Available targets:$(NC)"
+	@echo "  $(YELLOW)make all$(NC)                    - Full cluster setup (default)"
+	@echo "  $(YELLOW)make update-all$(NC)             - Update all nodes"
+	@echo "  $(YELLOW)make configure-locales$(NC)      - Configure locales on all nodes"
+	@echo "  $(YELLOW)make control-plane$(NC)          - Install control plane only"
+	@echo "  $(YELLOW)make workers$(NC)                - Install workers only"
+	@echo "  $(YELLOW)make cilium$(NC)                 - Install Cilium CNI"
+	@echo "  $(YELLOW)make restart-workers$(NC)        - Restart worker node agents"
+	@echo "  $(YELLOW)make argocd$(NC)                 - Install ArgoCD"
+	@echo "  $(YELLOW)make argocd-port-forward$(NC)    - Port-forward ArgoCD UI to localhost:8080"
+	@echo "  $(YELLOW)make argocd-password$(NC)        - Get ArgoCD admin password"
+	@echo "  $(YELLOW)make kubeconfig$(NC)             - Download kubeconfig and set 'pi' context"
+	@echo "  $(YELLOW)make uninstall-all$(NC)          - Uninstall k3s from all nodes"
+	@echo "  $(YELLOW)make uninstall-control-plane$(NC) - Uninstall from control plane"
+	@echo "  $(YELLOW)make uninstall-workers$(NC)      - Uninstall from workers"
+	@echo "  $(YELLOW)make uninstall-cilium$(NC)       - Uninstall Cilium CNI"
+	@echo "  $(YELLOW)make uninstall-argocd$(NC)       - Uninstall ArgoCD"
+	@echo "  $(YELLOW)make status$(NC)                 - Check cluster status"
+	@echo "  $(YELLOW)make help$(NC)                   - Show this help message"
