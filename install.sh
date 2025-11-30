@@ -51,7 +51,7 @@ update_software() {
 install_control_plane() {
   echo "=== Installing k3s server on p1 (${CONTROL_PLANE_IP}) ==="
 
-  ssh -i ${SSH_OPTS} ${SSH_KEY} ${SSH_USER}@${CONTROL_PLANE_IP} "
+  ssh ${SSH_OPTS} -i ${SSH_KEY} ${SSH_USER}@${CONTROL_PLANE_IP} "
       if systemctl is-active --quiet k3s 2>/dev/null; then
           echo 'k3s is already running'
       else
@@ -84,7 +84,7 @@ configure_workers() {
     WORKER_NAME="${WORKER_NAMES[$i]}"
     echo "=== Installing k3s agent on ${WORKER_NAME} (${WORKER_IP}) ==="
 
-    ssh -i ${SSH_OPTS} ${SSH_KEY} ${SSH_USER}@${CONTROL_PLANE_IP} "
+    ssh ${SSH_OPTS} -i ${SSH_KEY} ${SSH_USER}@${CONTROL_PLANE_IP} "
       if systemctl is-active --quiet k3s 2>/dev/null; then
           echo 'k3s is already running'
       else
