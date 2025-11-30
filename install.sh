@@ -9,7 +9,8 @@ SSH_KEY="~/.ssh/id_ed25519"
 
 # k3s configuration
 K3S_VERSION="v1.34.2+k3s1"
-CONTROL_PLANE_INSTALL_OPTS="--write-kubeconfig-mode 644 --disable servicelb --disable traefik"
+CONTROL_PLANE_INSTALL_OPTS="--write-kubeconfig-mode 644 --disable servicelb --disable traefik --flannel-backend=none --disable-network-policy"
+
 WORKER_INSTALL_OPTS=""
 
 ALL_IPS=("${CONTROL_PLANE_IP}" "${WORKER_IPS[@]}")
