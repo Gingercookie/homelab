@@ -52,7 +52,8 @@ install_control_plane() {
   echo "=== Installing k3s server on p1 (${CONTROL_PLANE_IP}) ==="
 
   ssh ${SSH_OPTS} -i ${SSH_KEY} ${SSH_USER}@${CONTROL_PLANE_IP} "
-      if systemctl is-active --quiet k3s 2>/dev/null; then
+      systemctl is-active --quiet k3s 2>/dev/null
+      if [ \$? -eq 0 ]; then
           echo 'k3s is already running'
       else
           echo 'k3s is not running, installing now...' >&2
@@ -63,7 +64,9 @@ install_control_plane() {
   # Wait for server to be ready
   echo "Waiting for k3s server to be ready..."
   sleep ${WAIT_TIMER}
+}
 
+get_server_token() {
   # Get the server token
   echo "=== Retrieving server token from p1 ==="
   K3S_TOKEN=$(ssh ${SSH_OPTS} -i ${SSH_KEY} ${SSH_USER}@${CONTROL_PLANE_IP} "sudo cat /var/lib/rancher/k3s/server/node-token")
@@ -84,13 +87,14 @@ configure_workers() {
     WORKER_NAME="${WORKER_NAMES[$i]}"
     echo "=== Installing k3s agent on ${WORKER_NAME} (${WORKER_IP}) ==="
 
-    ssh ${SSH_OPTS} -i ${SSH_KEY} ${SSH_USER}@${CONTROL_PLANE_IP} "
-      if systemctl is-active --quiet k3s 2>/dev/null; then
-          echo 'k3s is already running'
-      else
-          echo 'k3s is not running, installing now...' >&2
-          'curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_VERSION} K3S_URL=https://${CONTROL_PLANE_IP}:6443 K3S_TOKEN=${K3S_TOKEN} sh -s - agent ${WORKER_INSTALL_OPTS}'
-      fi
+    ssh ${SSH_OPTS} -i ${SSH_KEY} ${SSH_USER}@${WORKER_IP} "
+    systemctl is-active --quiet k3s-agent 2>/dev/null
+    if [ \$? -eq 0 ]; then
+        echo 'k3s-agent is already running'
+    else
+        echo 'k3s-agent is not yet running, installing now...' >&2
+        curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_VERSION} K3S_URL=https://${CONTROL_PLANE_IP}:6443 K3S_TOKEN=${K3S_TOKEN} sh -s - agent ${WORKER_INSTALL_OPTS}
+    fi
       " && echo "✓" || echo "✗ Failed"
 
     echo "Agent ${WORKER_NAME} installation complete"
@@ -100,6 +104,7 @@ configure_workers() {
 update_locales
 update_software
 install_control_plane
+get_server_token
 configure_workers
 
 echo ""
