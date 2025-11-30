@@ -14,7 +14,7 @@ WORKER_INSTALL_OPTS=""
 
 ALL_IPS=("${CONTROL_PLANE_IP}" "${WORKER_IPS[@]}")
 
-WAIT_TIMER=30
+WAIT_TIMER=10
 ABORT_TIMER=3
 
 SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
@@ -50,7 +50,15 @@ update_software() {
 # Install k3s server (control plane)
 install_control_plane() {
   echo "=== Installing k3s server on p1 (${CONTROL_PLANE_IP}) ==="
-  ssh -i ${SSH_OPTS} ${SSH_KEY} ${SSH_USER}@${CONTROL_PLANE_IP} "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_VERSION} sh -s - server ${CONTROL_PLANE_INSTALL_OPTS}"
+
+  ssh -i ${SSH_OPTS} ${SSH_KEY} ${SSH_USER}@${CONTROL_PLANE_IP} "
+      if systemctl is-active --quiet k3s 2>/dev/null; then
+          echo 'k3s is already running'
+      else
+          echo 'k3s is not running, installing now...' >&2
+          'curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_VERSION} sh -s - server ${CONTROL_PLANE_INSTALL_OPTS}'
+      fi
+      " && echo "✓" || echo "✗ Failed"
 
   # Wait for server to be ready
   echo "Waiting for k3s server to be ready..."
@@ -75,7 +83,16 @@ configure_workers() {
     WORKER_IP="${WORKER_IPS[$i]}"
     WORKER_NAME="${WORKER_NAMES[$i]}"
     echo "=== Installing k3s agent on ${WORKER_NAME} (${WORKER_IP}) ==="
-    ssh ${SSH_OPTS} -i ${SSH_KEY} ${SSH_USER}@${WORKER_IP} "curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_VERSION} K3S_URL=https://${CONTROL_PLANE_IP}:6443 K3S_TOKEN=${K3S_TOKEN} sh -s - agent ${WORKER_INSTALL_OPTS}"
+
+    ssh -i ${SSH_OPTS} ${SSH_KEY} ${SSH_USER}@${CONTROL_PLANE_IP} "
+      if systemctl is-active --quiet k3s 2>/dev/null; then
+          echo 'k3s is already running'
+      else
+          echo 'k3s is not running, installing now...' >&2
+          'curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=${K3S_VERSION} K3S_URL=https://${CONTROL_PLANE_IP}:6443 K3S_TOKEN=${K3S_TOKEN} sh -s - agent ${WORKER_INSTALL_OPTS}'
+      fi
+      " && echo "✓" || echo "✗ Failed"
+
     echo "Agent ${WORKER_NAME} installation complete"
   done
 }
