@@ -1,6 +1,6 @@
 # Configuration
-SERVER_IP := 192.168.1.101
-AGENT_IPS := 192.168.1.102 192.168.1.103
+SERVER_IP := 192.168.1.91
+AGENT_IPS := 192.168.1.92 192.168.1.93
 ALL_IPS := $(SERVER_IP) $(AGENT_IPS)
 
 SSH_USER := will
@@ -24,7 +24,7 @@ NC := $(shell tput sgr0 2>/dev/null) # No Color
 # Force shell to be bash for color support
 SHELL := /bin/bash
 
-.PHONY: all control-plane workers cilium uninstall-all uninstall-control-plane uninstall-workers uninstall-cilium update-all configure-locales kubeconfig argocd argocd-port-forward argocd-password uninstall-argocd restart-workers help status
+.PHONY: all control-plane workers cilium uninstall-all uninstall-control-plane uninstall-workers uninstall-cilium update-all configure-locales kubeconfig argocd argocd-password uninstall-argocd restart-workers help status
 
 
 ## Default target
@@ -208,21 +208,6 @@ argocd:
 	@echo "  1. Run: kubectl port-forward svc/argocd-server -n argocd 8080:443"
 	@echo "  2. Open: https://localhost:8080"
 	@echo "  3. Login with username: $(YELLOW)admin$(NC) and password above"
-	@echo ""
-	@echo "$(YELLOW)Or use: make argocd-port-forward$(NC)"
-
-## Port-forward ArgoCD UI to localhost
-argocd-port-forward:
-	@echo "$(BLUE)=== Port-forwarding ArgoCD UI ===$(NC)"
-	@echo "$(YELLOW)ArgoCD will be available at: https://localhost:8080$(NC)"
-	@echo "$(YELLOW)Username: admin$(NC)"
-	@echo "$(BLUE)Password:$(NC)"
-	@ssh $(SSH_OPTS) -i $(SSH_KEY) $(SSH_USER)@$(SERVER_IP) " \
-		export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; \
-		kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo ''"
-	@echo ""
-	@echo "$(YELLOW)Press Ctrl+C to stop port-forwarding$(NC)"
-	@kubectl port-forward svc/argocd-server -n argocd 8080:443
 
 ## Get ArgoCD admin password
 argocd-password:
@@ -265,7 +250,6 @@ help:
 	@echo "  $(YELLOW)make cilium$(NC)                 - Install Cilium CNI"
 	@echo "  $(YELLOW)make restart-workers$(NC)        - Restart worker node agents"
 	@echo "  $(YELLOW)make argocd$(NC)                 - Install ArgoCD"
-	@echo "  $(YELLOW)make argocd-port-forward$(NC)    - Port-forward ArgoCD UI to localhost:8080"
 	@echo "  $(YELLOW)make argocd-password$(NC)        - Get ArgoCD admin password"
 	@echo "  $(YELLOW)make kubeconfig$(NC)             - Download kubeconfig and set 'pi' context"
 	@echo "  $(YELLOW)make uninstall-all$(NC)          - Uninstall k3s from all nodes"
