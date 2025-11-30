@@ -1,0 +1,146 @@
+kube-prometheus-stack:
+  # Prometheus configuration
+  prometheus:
+    prometheusSpec:
+      # Resource limits for Pi
+      resources:
+        requests:
+          cpu: 200m
+          memory: 512Mi
+        limits:
+          cpu: 1000m
+          memory: 2Gi
+
+      # Storage - using local-path
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: local-path
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 10Gi
+
+      # Retention settings
+      retention: 7d
+      retentionSize: "9GB"
+
+      # Scraping intervals - less frequent to save resources
+      scrapeInterval: 60s
+      evaluationInterval: 60s
+
+      # Enable service monitors
+      serviceMonitorSelectorNilUsesHelmValues: false
+      podMonitorSelectorNilUsesHelmValues: false
+
+  # Grafana configuration
+  grafana:
+    enabled: true
+    adminPassword: "admin"  # Change this or use external secret
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+    persistence:
+      enabled: true
+      storageClassName: local-path
+      size: 5Gi
+
+    # Access via port-forward for now
+    # kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80
+    service:
+      type: ClusterIP
+
+    # Pre-configure Loki datasource
+    additionalDataSources:
+      - name: Loki
+        type: loki
+        url: http://loki-gateway.logging.svc.cluster.local:80
+        access: proxy
+        isDefault: false
+        jsonData:
+          maxLines: 1000
+
+    # Enable useful dashboards
+    dashboardProviders:
+      dashboardproviders.yaml:
+        apiVersion: 1
+        providers:
+          - name: 'default'
+            orgId: 1
+            folder: ''
+            type: file
+            disableDeletion: false
+            editable: true
+            options:
+              path: /var/lib/grafana/dashboards/default
+
+    dashboards:
+      default:
+        kubernetes-cluster:
+          gnetId: 7249
+          revision: 1
+          datasource: Prometheus
+        node-exporter:
+          gnetId: 1860
+          revision: 31
+          datasource: Prometheus
+
+  # Alertmanager configuration
+  alertmanager:
+    alertmanagerSpec:
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          cpu: 200m
+          memory: 256Mi
+
+      storage:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: local-path
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 2Gi
+
+      retention: 120h
+
+  # Prometheus Operator
+  prometheusOperator:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+  # Node Exporter - essential for node metrics
+  nodeExporter:
+    enabled: true
+
+  # Kube State Metrics
+  kubeStateMetrics:
+    enabled: true
+
+  # Disable some heavy components we don't need right now
+  coreDns:
+    enabled: false
+  kubeDns:
+    enabled: false
+  kubeEtcd:
+    enabled: false
+  kubeControllerManager:
+    enabled: false
+  kubeScheduler:
+    enabled: false
+  kubeProxy:
+    enabled: false
