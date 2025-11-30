@@ -25,11 +25,11 @@ NC := $(shell tput sgr0 2>/dev/null) # No Color
 # Force shell to be bash for color support
 SHELL := /bin/bash
 
-.PHONY: all control-plane workers cilium uninstall-all uninstall-control-plane uninstall-workers uninstall-cilium update-all configure-locales kubeconfig argocd argocd-password uninstall-argocd restart-workers help status
+.PHONY: k3s-all control-plane workers cilium uninstall-all uninstall-control-plane uninstall-workers uninstall-cilium update-all configure-locales kubeconfig argocd argocd-password uninstall-argocd restart-workers help status
 
 
 ## Default target
-all: update-all configure-locales control-plane workers cilium kubeconfig argocd
+k3s-all: update-all configure-locales control-plane workers cilium kubeconfig argocd
 	@echo -e "$(GREEN)✓ k3s cluster installation complete!$(NC)"
 	@echo -e "$(BLUE)Verify with: make status$(NC)"
 
@@ -243,7 +243,7 @@ help:
 	@echo "$(BLUE)k3s Cluster Management Makefile$(NC)"
 	@echo ""
 	@echo "$(GREEN)Available targets:$(NC)"
-	@echo "  $(YELLOW)make all$(NC)                    - Full cluster setup (default)"
+	@echo "  $(YELLOW)make k3s-all$(NC)                - Full cluster setup (default)"
 	@echo "  $(YELLOW)make update-all$(NC)             - Update all nodes"
 	@echo "  $(YELLOW)make configure-locales$(NC)      - Configure locales on all nodes"
 	@echo "  $(YELLOW)make control-plane$(NC)          - Install control plane only"

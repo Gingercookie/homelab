@@ -6,10 +6,9 @@ kube-prometheus-stack:
       resources:
         requests:
           cpu: 200m
-          memory: 512Mi
+          memory: 1Gi
         limits:
-          cpu: 1000m
-          memory: 2Gi
+          memory: 1Gi
 
       # Storage - using local-path
       storageSpec:
@@ -40,11 +39,10 @@ kube-prometheus-stack:
 
     resources:
       requests:
-        cpu: 100m
+        cpu: 200m
         memory: 256Mi
       limits:
-        cpu: 500m
-        memory: 512Mi
+        memory: 1Gi
 
     persistence:
       enabled: true
@@ -96,11 +94,10 @@ kube-prometheus-stack:
     alertmanagerSpec:
       resources:
         requests:
-          cpu: 50m
+          cpu: 10m
           memory: 128Mi
         limits:
-          cpu: 200m
-          memory: 256Mi
+          memory: 128Mi
 
       storage:
         volumeClaimTemplate:
@@ -112,24 +109,61 @@ kube-prometheus-stack:
                 storage: 2Gi
 
       retention: 120h
+      replicas: 1
+      logFormat: json
 
   # Prometheus Operator
   prometheusOperator:
     resources:
       requests:
-        cpu: 100m
+        cpu: 50m
         memory: 128Mi
       limits:
-        cpu: 500m
-        memory: 256Mi
+        cpu: 50m
+        memory: 128Mi
+
+    admissionWebhooks:
+      enabled: true
+      patch:
+        enabled: true
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 10m
+            memory: 32Mi
+
+    prometheusConfigReloader:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 10m
+          memory: 32Mi
 
   # Node Exporter - essential for node metrics
   nodeExporter:
     enabled: true
 
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 64Mi
+
   # Kube State Metrics
   kubeStateMetrics:
     enabled: true
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
 
   # Disable some heavy components we don't need right now
   coreDns:
