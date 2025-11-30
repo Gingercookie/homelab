@@ -1,6 +1,7 @@
 # Configuration
-SERVER_IP := 192.168.1.91
-AGENT_IPS := 192.168.1.92 192.168.1.93
+SERVER_IP := 192.168.1.92
+AGENT_IPS := 192.168.1.93
+# AGENT_IPS := 192.168.1.92 192.168.1.93
 ALL_IPS := $(SERVER_IP) $(AGENT_IPS)
 
 SSH_USER := will
@@ -28,7 +29,7 @@ SHELL := /bin/bash
 
 
 ## Default target
-all: update-all configure-system control-plane cilium workers
+all: update-all configure-locales control-plane workers cilium kubeconfig argocd
 	@echo -e "$(GREEN)✓ k3s cluster installation complete!$(NC)"
 	@echo -e "$(BLUE)Verify with: make status$(NC)"
 
@@ -44,7 +45,7 @@ update-all:
 	done
 
 ## Configure system settings (locale)
-configure-system:
+configure-locales:
 	@echo -e "$(BLUE)=== Configuring system settings on all Pis ===$(NC)"
 	@# Configure locales
 	@for ip in $(ALL_IPS); do \
