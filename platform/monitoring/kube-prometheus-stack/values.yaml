@@ -119,7 +119,6 @@ kube-prometheus-stack:
         cpu: 50m
         memory: 128Mi
       limits:
-        cpu: 50m
         memory: 128Mi
 
     admissionWebhooks:
@@ -131,7 +130,6 @@ kube-prometheus-stack:
             cpu: 10m
             memory: 32Mi
           limits:
-            cpu: 10m
             memory: 32Mi
 
     prometheusConfigReloader:
@@ -140,7 +138,6 @@ kube-prometheus-stack:
           cpu: 10m
           memory: 32Mi
         limits:
-          cpu: 10m
           memory: 32Mi
 
   # Node Exporter - essential for node metrics
