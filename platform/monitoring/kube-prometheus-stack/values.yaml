@@ -1,16 +1,16 @@
 kube-prometheus-stack:
-  # Prometheus configuration
+
   prometheus:
     prometheusSpec:
-      # Resource limits for Pi
+      # Resources
       resources:
         requests:
-          cpu: 200m
-          memory: 1Gi
+          cpu: 250m
+          memory: 2Gi
         limits:
-          memory: 1Gi
+          memory: 2Gi
 
-      # Storage - using local-path
+      # Storage
       storageSpec:
         volumeClaimTemplate:
           spec:
@@ -18,43 +18,89 @@ kube-prometheus-stack:
             accessModes: ["ReadWriteOnce"]
             resources:
               requests:
-                storage: 10Gi
+                storage: 15Gi
 
-      # Retention settings
+      # Retention
       retention: 7d
-      retentionSize: "9GB"
+      retentionSize: "14GB"
 
-      # Scraping intervals - less frequent to save resources
+      # Scraping intervals
       scrapeInterval: 60s
+      scrapeTimeout: 50s
       evaluationInterval: 60s
 
-      # Enable service monitors
+      # WAL compression
+      walCompression: true
+
+      # Selectors
       serviceMonitorSelectorNilUsesHelmValues: false
       podMonitorSelectorNilUsesHelmValues: false
+      ruleSelectorNilUsesHelmValues: false
 
-  # Grafana configuration
+      # ============================================
+      # OPENTELEMETRY OTLP RECEIVER
+      # ============================================
+      enableFeatures:
+        - otlp-write-receiver
+        - exemplar-storage          # Link metrics to traces
+
+      # Enable remote write receiver for OTLP
+      enableRemoteWriteReceiver: true
+
+      # Exemplar storage for trace correlation
+      exemplars:
+        maxSize: 100000
+
+      # Additional ports for OTLP
+      additionalServicePorts:
+        - name: otlp-grpc
+          port: 4317
+          targetPort: 4317
+          protocol: TCP
+        - name: otlp-http
+          port: 4318
+          targetPort: 4318
+          protocol: TCP
+
+  # Grafana with Tempo datasource
   grafana:
     enabled: true
-    adminPassword: "admin"  # Change this or use external secret
 
     resources:
       requests:
-        cpu: 200m
-        memory: 256Mi
+        cpu: 100m
+        memory: 512Mi
       limits:
-        memory: 1Gi
+        memory: 512Mi
 
     persistence:
       enabled: true
       storageClassName: local-path
       size: 5Gi
 
-    # Access via port-forward for now
-    # kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80
-    service:
-      type: ClusterIP
+    adminPassword: "admin"
 
-    # Pre-configure Loki datasource
+    grafana.ini:
+      server:
+        root_url: "http://localhost:3000"
+      analytics:
+        reporting_enabled: false
+        check_for_updates: false
+      log:
+        mode: console
+        level: info
+      database:
+        type: sqlite3
+      dashboards:
+        min_refresh_interval: 30s
+
+      # ============================================
+      # TRACING CONFIGURATION
+      # ============================================
+      feature_toggles:
+        enable: traceqlEditor tempoSearch tempoBackendSearch
+
+    # Data sources - Prometheus, Loki, AND Tempo
     additionalDataSources:
       - name: Loki
         type: loki
@@ -63,8 +109,34 @@ kube-prometheus-stack:
         isDefault: false
         jsonData:
           maxLines: 1000
+          derivedFields:
+            - datasourceUid: tempo
+              matcherRegex: "traceID=(\\w+)"
+              name: TraceID
+              url: "$${__value.raw}"
 
-    # Enable useful dashboards
+      - name: Tempo
+        type: tempo
+        url: http://tempo.observability.svc.cluster.local:3100
+        access: proxy
+        isDefault: false
+        jsonData:
+          tracesToLogsV2:
+            datasourceUid: loki
+            spanStartTimeShift: '-1h'
+            spanEndTimeShift: '1h'
+            filterByTraceID: true
+            filterBySpanID: false
+          tracesToMetrics:
+            datasourceUid: prometheus
+          serviceMap:
+            datasourceUid: prometheus
+          nodeGraph:
+            enabled: true
+          lokiSearch:
+            datasourceUid: loki
+
+    # Dashboards
     dashboardProviders:
       dashboardproviders.yaml:
         apiVersion: 1
@@ -88,9 +160,33 @@ kube-prometheus-stack:
           gnetId: 1860
           revision: 31
           datasource: Prometheus
+        kubernetes-pods:
+          gnetId: 6417
+          revision: 1
+          datasource: Prometheus
+        # OpenTelemetry dashboards
+        otel-collector:
+          gnetId: 15983
+          revision: 1
+          datasource: Prometheus
 
-  # Alertmanager configuration
+    sidecar:
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          memory: 64Mi
+      dashboards:
+        enabled: true
+        label: grafana_dashboard
+      datasources:
+        enabled: true
+        label: grafana_datasource
+
+  # Alertmanager
   alertmanager:
+    enabled: true
     alertmanagerSpec:
       resources:
         requests:
@@ -98,7 +194,6 @@ kube-prometheus-stack:
           memory: 128Mi
         limits:
           memory: 128Mi
-
       storage:
         volumeClaimTemplate:
           spec:
@@ -107,20 +202,20 @@ kube-prometheus-stack:
             resources:
               requests:
                 storage: 2Gi
-
       retention: 120h
       replicas: 1
+      logLevel: info
       logFormat: json
 
   # Prometheus Operator
   prometheusOperator:
+    enabled: true
     resources:
       requests:
         cpu: 50m
-        memory: 128Mi
+        memory: 256Mi
       limits:
-        memory: 128Mi
-
+        memory: 256Mi
     admissionWebhooks:
       enabled: true
       patch:
@@ -131,30 +226,17 @@ kube-prometheus-stack:
             memory: 32Mi
           limits:
             memory: 32Mi
-
     prometheusConfigReloader:
       resources:
         requests:
           cpu: 10m
-          memory: 32Mi
+          memory: 64Mi
         limits:
-          memory: 32Mi
-
-  # Node Exporter - essential for node metrics
-  nodeExporter:
-    enabled: true
-
-    resources:
-      requests:
-        cpu: 50m
-        memory: 64Mi
-      limits:
-        memory: 64Mi
+          memory: 64Mi
 
   # Kube State Metrics
-  kubeStateMetrics:
+  kube-state-metrics:
     enabled: true
-
     resources:
       requests:
         cpu: 50m
@@ -162,16 +244,67 @@ kube-prometheus-stack:
       limits:
         memory: 128Mi
 
-  # Disable some heavy components we don't need right now
-  coreDns:
-    enabled: false
-  kubeDns:
-    enabled: false
-  kubeEtcd:
+  # Node Exporter
+  prometheus-node-exporter:
+    enabled: true
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 64Mi
+
+  # Default rules
+  defaultRules:
+    create: true
+    rules:
+      alertmanager: true
+      etcd: false
+      configReloaders: true
+      general: true
+      k8sContainerCpuUsageSecondsTotal: true
+      k8sContainerMemoryCache: true
+      k8sContainerMemoryRss: true
+      k8sContainerMemorySwap: true
+      k8sContainerResource: true
+      k8sContainerMemoryWorkingSetBytes: true
+      k8sPodOwner: true
+      kubeApiserver: false
+      kubeApiserverAvailability: true
+      kubeApiserverBurnrate: false
+      kubeApiserverHistogram: false
+      kubeApiserverSlos: false
+      kubeControllerManager: false
+      kubelet: true
+      kubeProxy: false
+      kubePrometheusGeneral: true
+      kubePrometheusNodeRecording: true
+      kubernetesApps: true
+      kubernetesResources: true
+      kubernetesStorage: true
+      kubernetesSystem: true
+      kubeSchedulerAlerting: false
+      kubeSchedulerRecording: false
+      kubeStateMetrics: true
+      network: true
+      node: true
+      nodeExporterAlerting: true
+      nodeExporterRecording: true
+      prometheus: true
+      prometheusOperator: true
+
+  # Component monitoring
+  kubeApiServer:
     enabled: false
   kubeControllerManager:
     enabled: false
   kubeScheduler:
     enabled: false
   kubeProxy:
+    enabled: false
+  kubeEtcd:
+    enabled: false
+  coreDns:
+    enabled: true
+  kubeDns:
     enabled: false

@@ -1,11 +1,36 @@
 ---
+# Tempo first - tracing backend
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tempo
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Gingercookie/homelab.git
+    targetRevision: main
+    path: platform/monitoring/tempo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+# Prometheus with OTLP enabled
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: kube-prometheus-stack
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   project: default
   source:
@@ -29,13 +54,14 @@ spec:
         factor: 2
         maxDuration: 3m
 ---
+# Loki
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: loki
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "3"
 spec:
   project: default
   source:
@@ -52,13 +78,14 @@ spec:
     syncOptions:
       - CreateNamespace=true
 ---
+# Promtail
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: promtail
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "3"
+    argocd.argoproj.io/sync-wave: "4"
 spec:
   project: default
   source:
@@ -75,13 +102,38 @@ spec:
     syncOptions:
       - CreateNamespace=true
 ---
+# OpenTelemetry Collector - install after backends are ready
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: opentelemetry-collector
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Gingercookie/homelab.git
+    targetRevision: main
+    path: platform/observability/opentelemetry-collector
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+# External Secrets
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: external-secrets
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "6"
 spec:
   project: default
   source:

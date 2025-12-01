@@ -1,0 +1,178 @@
+opentelemetry-collector:
+  # Deployment mode - gateway (single instance that receives from all apps)
+  mode: deployment
+
+  # Number of replicas
+  replicaCount: 1
+
+  # Resources for collector
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 256Mi
+
+  # Service configuration
+  service:
+    type: ClusterIP
+
+  # Ports configuration
+  ports:
+    otlp:
+      enabled: true
+      containerPort: 4317
+      servicePort: 4317
+      hostPort: 4317
+      protocol: TCP
+      appProtocol: grpc
+    otlp-http:
+      enabled: true
+      containerPort: 4318
+      servicePort: 4318
+      hostPort: 4318
+      protocol: TCP
+    jaeger-compact:
+      enabled: false
+    jaeger-thrift:
+      enabled: false
+    jaeger-grpc:
+      enabled: false
+    zipkin:
+      enabled: false
+    metrics:
+      enabled: true
+      containerPort: 8888
+      servicePort: 8888
+      protocol: TCP
+
+  # Collector configuration
+  config:
+    # Receivers - how telemetry enters the collector
+    receivers:
+      # OTLP receiver - accepts traces, metrics, logs
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+            cors:
+              allowed_origins:
+                - "http://*"
+                - "https://*"
+
+      # Prometheus receiver - scrape collector's own metrics
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: 'otel-collector'
+              scrape_interval: 30s
+              static_configs:
+                - targets: ['0.0.0.0:8888']
+
+    # Processors - transform/filter telemetry
+    processors:
+      # Batch processor - batches telemetry before sending
+      batch:
+        timeout: 10s
+        send_batch_size: 1024
+
+      # Memory limiter - prevents OOM
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 200
+        spike_limit_mib: 50
+
+      # Resource processor - add cluster info
+      resource:
+        attributes:
+          - key: cluster.name
+            value: homelab
+            action: upsert
+          - key: deployment.environment
+            value: production
+            action: upsert
+
+      # Attributes processor - modify span attributes
+      attributes:
+        actions:
+          - key: environment
+            value: homelab
+            action: insert
+
+    # Exporters - where telemetry goes
+    exporters:
+      # Prometheus exporter - send metrics to Prometheus
+      otlphttp/prometheus:
+        endpoint: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/otlp
+        tls:
+          insecure: true
+
+      # Tempo exporter - send traces to Tempo
+      otlp/tempo:
+        endpoint: tempo.observability.svc.cluster.local:4317
+        tls:
+          insecure: true
+
+      # Loki exporter - send logs to Loki
+      loki:
+        endpoint: http://loki-gateway.logging.svc.cluster.local:80/loki/api/v1/push
+        headers:
+          "X-Scope-OrgID": "homelab"
+
+      # Debug exporter - useful for troubleshooting
+      debug:
+        verbosity: detailed
+        sampling_initial: 5
+        sampling_thereafter: 200
+
+    # Extensions - additional capabilities
+    extensions:
+      health_check:
+        endpoint: :13133
+      pprof:
+        endpoint: :1777
+      zpages:
+        endpoint: :55679
+
+    # Service - pipeline configuration
+    service:
+      extensions: [health_check, pprof, zpages]
+
+      pipelines:
+        # Traces pipeline
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, resource, attributes, batch]
+          exporters: [otlp/tempo]
+
+        # Metrics pipeline
+        metrics:
+          receivers: [otlp, prometheus]
+          processors: [memory_limiter, resource, batch]
+          exporters: [otlphttp/prometheus]
+
+        # Logs pipeline
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, resource, batch]
+          exporters: [loki]
+
+      telemetry:
+        logs:
+          level: info
+        metrics:
+          address: 0.0.0.0:8888
+
+  # ServiceMonitor for Prometheus to scrape collector metrics
+  serviceMonitor:
+    enabled: true
+    metricsEndpoints:
+      - port: metrics
+        interval: 30s
+
+  # Pod annotations
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8888"
