@@ -24,10 +24,19 @@ NC := $(shell tput sgr0 2>/dev/null) # No Color
 # Force shell to be bash for color support
 SHELL := /bin/bash
 
-.PHONY: k3s-all control-plane workers cilium uninstall-all uninstall-control-plane uninstall-workers uninstall-cilium update-all configure-locales kubeconfig argocd argocd-password uninstall-argocd restart-workers help status
+.PHONY: status k3s-all control-plane workers cilium uninstall-all uninstall-control-plane uninstall-workers uninstall-cilium update-all configure-locales kubeconfig argocd argocd-password uninstall-argocd restart-workers help
 
 
+## Check cluster status
 ## Default target
+status:
+	@echo -e "$(BLUE)=== Cluster Status ===$(NC)"
+	@ssh $(SSH_OPTS) -i $(SSH_KEY) $(SSH_USER)@$(SERVER_IP) "sudo kubectl get nodes -o wide" || echo -e "$(RED)✗ Cluster not accessible$(NC)"
+	@echo -e ""
+	@echo -e "$(BLUE)=== Cilium Status ===$(NC)"
+	@ssh $(SSH_OPTS) -i $(SSH_KEY) $(SSH_USER)@$(SERVER_IP) "KUBECONFIG=/etc/rancher/k3s/k3s.yaml cilium status" || echo -e "$(YELLOW)Cilium not installed or not accessible$(NC)"
+
+# Install k3s everywhere
 k3s-all: update-all configure-locales control-plane workers cilium kubeconfig argocd
 	@echo -e "$(GREEN)✓ k3s cluster installation complete!$(NC)"
 	@echo -e "$(BLUE)Verify with: make status$(NC)"
@@ -228,14 +237,6 @@ uninstall-argocd:
 ## Uninstall k3s from all nodes
 uninstall-all: uninstall-workers uninstall-control-plane
 	@echo -e "$(GREEN)✓ k3s uninstalled from all nodes$(NC)"
-
-## Check cluster status
-status:
-	@echo -e "$(BLUE)=== Cluster Status ===$(NC)"
-	@ssh $(SSH_OPTS) -i $(SSH_KEY) $(SSH_USER)@$(SERVER_IP) "sudo kubectl get nodes -o wide" || echo -e "$(RED)✗ Cluster not accessible$(NC)"
-	@echo -e ""
-	@echo -e "$(BLUE)=== Cilium Status ===$(NC)"
-	@ssh $(SSH_OPTS) -i $(SSH_KEY) $(SSH_USER)@$(SERVER_IP) "KUBECONFIG=/etc/rancher/k3s/k3s.yaml cilium status" || echo -e "$(YELLOW)Cilium not installed or not accessible$(NC)"
 
 ## Show help
 help:
