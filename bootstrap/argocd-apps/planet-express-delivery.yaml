@@ -1,0 +1,26 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/crds/application-crd.yaml
+# Tempo first - tracing backend
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: planet-express-delivery
+  namespace: argocd
+  annotations:
+    # reserve sync-wave 20 for applications (all platform-apps should be done by now)
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Gingercookie/homelab.git
+    targetRevision: main
+    path: planet-express/delivery
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: planet-express
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
