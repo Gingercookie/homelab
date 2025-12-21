@@ -27,6 +27,7 @@ loki:
       retention_period: 168h  # 7 days
       max_query_series: 1000
       max_query_parallelism: 2
+      volume_enabled: true
 
   # Single binary deployment (simplest for home lab)
   deploymentMode: SingleBinary
