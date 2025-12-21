@@ -18,14 +18,9 @@ Once ArgoCD is healthy, you can install the app-of-apps to bootstrap the rest of
 kubectl apply -f bootstrap/argocd-apps/app-of-apps.yaml
 ```
 
-## Planet Express
+#### Planet Express
 
-TODO: refactor to get installed through workload-apps
-
-```bash
-kubectl create ns planet-express
-fd deployment | xargs -I % kubectl apply -f %
-```
+This will get installed through the app-of-apps now.
 
 TODO: cert-manager install with argo
 TODO: ingress
