@@ -2,68 +2,37 @@
 
 ## K3s Install
 
-[K3s quick-start guide](https://docs.k3s.io/quick-start)
+After refactoring into using Makefile, you can use the various make targets.
+The default target `make k3s-all` will install k3s on the control plane and workers, as well as install cilium and deploy argocd.
+Run `make help` for information about the other targets.
 
-### Server
+reference: [K3s quick-start guide](https://docs.k3s.io/quick-start)
 
-Upload this to `/etc/rancher/k3s/config.yaml`
+## Bootstrapping
 
-```bash
-write-kubeconfig-mode: "0644"
-tls-san:
-  - "wgraham.io"
+### Argo-managed apps
+
+Once ArgoCD is healthy, you can install the app-of-apps to bootstrap the rest of the platform-apps.
+
+```sh
+kubectl apply -f bootstrap/argocd-apps/app-of-apps.yaml
 ```
 
-and run
+## Planet Express
+
+TODO: refactor to get installed through workload-apps
 
 ```bash
-# Default flannel CNI
-curl -sfL https://get.k3s.io | sh -s -
-
-# Setup to BYO CNI (cilium, etc)
-curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--flannel-backend=none --disable-network-policy' sh -
+kubectl create ns planet-express
+fd deployment | xargs -I % kubectl apply -f %
 ```
 
-Get the token from the server to join the clients
-`cat /var/lib/rancher/k3s/server/node-token`
+TODO: cert-manager install with argo
+TODO: ingress
 
-Update your local kubeconfig
+# Old Notes below
 
-```bash
-scp will@192.168.1.101:/etc/rancher/k3s/k3s.yaml k3s.yaml
-yq '.clusters[0].cluster.certificate-authority-data' k3s.yaml | base64 -d > cluster-ca-data.crt
-yq '.users[0].user.client-certificate-data' k3s.yaml | base64 -d > client-cert-data.crt
-yq '.users[0].user.client-key-data' k3s.yaml | base64 -d > client-key-data.key
-
-# Use this for remote config when control plane is exposed publically
-kubectl config set-cluster pi --server=https://wgraham.io:6443
-# Use this for on-network config
-kubectl config set-cluster pi --server=https://pi:6443
-kubectl config set-cluster pi --embed-certs --certificate-authority='cluster-ca-data.crt'
-kubectl config set-credentials pi --embed-certs --client-certificate='client-cert-data.crt'
-kubectl config set-credentials pi --embed-certs --client-key='client-key-data.key'
-kubectl config set-context pi --cluster='pi' --user='pi'
-```
-
-### Agents
-
-Run this on each one
-
-`curl -sfL https://get.k3s.io | K3S_TOKEN="TOKEN_FROM_SERVER" K3S_URL=https://wgraham.io:6443 sh -`
-
-# Bootstrapping
-
-### Pre-anything steps
-
-Just make all the namespaces now
-
-```bash
-kubectl create ns vault
-kubectl create ns argocd
-kubectl create ns logging
-kubectl create ns monitoring
-kubectl create ns cert-manager
-```
+Notes from before the makefile / argocd app-of-apps refactor are below (but they should probably still work)
 
 ## Cert-Manager
 
@@ -119,79 +88,6 @@ For most services, you can now do straight up TLS with the certs that were provi
 
 To get around this, we need to create a `ServersTransport` CRD to tell Traefik to skip TLS on the backend when communicating with the ArgoCD Server.
 
-## Grafana
-
-This one is pretty fully baked using the community helm charts
-
-Add the helm repo and install
-
-```bash
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm upgrade --install -n monitoring kube-prometheus prometheus-community/kube-prometheus-stack --set grafana.adminPassword="<password>"
-```
-
-# Security
-
-The ingresses that I have set up are not accessible via the public DNS because I have the ports disabled through the dream machine. You have to enable the ports for ingress to work.
-
-Grafana has "my password" set.
-
-## ArgoCD
-
-[ArgoCD quick-start guide](https://argo-cd.readthedocs.io/en/stable/getting_started/)
-
-```bash
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-```
-
-### TLS Configuration
-
-If you have already created certificates in all namespaces,
-
-```bash
-kubectl get secret -n argocd wildcard-tls -o json | jq -r '.data."tls.key"' | base64 -d > tls.key
-kubectl get secret -n argocd wildcard-tls -o json | jq -r '.data."tls.crt"' | base64 -d > tls.crt
-kubectl create -n argocd secret tls argocd-server-tls --cert=tls.crt --key=tls.key
-```
-
-### Argo-managed apps
-
-`kubectl apply -f <yamls-in-argocd-dir>`
-
-For fluent-bit, make sure elasticsearch is set up already though
-
-TODO - below this line
-
-## ElasticSearch
-
-[Install ECK with manifests](https://www.elastic.co/docs/deploy-manage/deploy/cloud-on-k8s/install-using-yaml-manifest-quickstart)
-
-First, install CRDS and the operator
-
-```bash
-kubectl create -f https://download.elastic.co/downloads/eck/3.0.0/crds.yaml
-kubectl apply -f https://download.elastic.co/downloads/eck/3.0.0/operator.yaml
-```
-
-Now we can apply the local elasic and kibana manifests
-
-```bash
-kubectl apply -f elasticsearch.yaml
-kubectl apply -f kibana.yaml
-```
-
-After doing this, make sure to update the password in the `logging/fluent-bit-values.yaml` so the pods can authenticate. Password can be obtained with `kubectl get secret -n logging elastic-es-elastic-user -o json | jq -r '.data."elastic"' | base64 -d`
-
 ## Vault
 
-Just `kaf` the `vault.yaml` bruh.
-
-Gonna actually not expose the ingress for this one, and might eventually take it out. Not even sure if Caddy needs to be running anymore.
-
-## Planet Express
-
-```bash
-kubectl create ns planet-express
-fd deployment | xargs -I % kubectl apply -f %
-```
+Vault no longer needed now that I don't need to run Caddy anymore.
