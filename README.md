@@ -23,6 +23,7 @@ kubectl apply -f bootstrap/argocd-apps/app-of-apps.yaml
 This will get installed through the app-of-apps now.
 
 TODO: cert-manager install with argo
+
 TODO: ingress
 
 # Old Notes below
