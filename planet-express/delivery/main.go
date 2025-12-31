@@ -116,18 +116,21 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("[INFO] Got request for new delivery")
 	var req DeliveryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	fmt.Println("[INFO] Dispatching request for available crew")
 	crew, err := requestAvailableCrew()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 
+	fmt.Println("[INFO] Dispatching request to reserve ship")
 	ship, err := reserveShip()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
