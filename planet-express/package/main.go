@@ -3,6 +3,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"net/http"
 	"sync"
@@ -52,6 +53,7 @@ func listPackages(w http.ResponseWriter, r *http.Request) {
 }
 
 func getPackage(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("[INFO] Received request to get a package")
 	id := r.URL.Query().Get("id")
 	mu.Lock()
 	defer mu.Unlock()
@@ -63,6 +65,7 @@ func getPackage(w http.ResponseWriter, r *http.Request) {
 }
 
 func updatePackageStatus(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("[INFO] Received request to update package status")
 	id := r.URL.Query().Get("id")
 	status := r.URL.Query().Get("status")
 	if status == "" {
@@ -75,8 +78,10 @@ func updatePackageStatus(w http.ResponseWriter, r *http.Request) {
 		pkg.Status = status
 		packages[id] = pkg
 		json.NewEncoder(w).Encode(pkg)
+		fmt.Printf("[INFO] Successfully updated status of package %s\n", pkg)
 	} else {
 		http.NotFound(w, r)
+		fmt.Println("[WARN] Package was not found!")
 	}
 }
 
