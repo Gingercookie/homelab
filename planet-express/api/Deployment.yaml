@@ -5,9 +5,6 @@ metadata:
   name: planetexpress-api
   namespace: planet-express
   annotations:
-    prometheus.io/scrape: "true"
-    prometheus.io/port: "2112"
-    prometheus.io/path: "/metrics"
 spec:
   replicas: 1
   selector:
@@ -41,4 +38,17 @@ spec:
   ports:
     - port: 80
       targetPort: 8080
-  type: NodePort
+    - port: 2112
+      name: metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: planetexpress-api
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: planetexpress-api
+  endpoints:
+    - port: metrics
