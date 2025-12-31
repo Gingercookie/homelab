@@ -69,11 +69,6 @@ func main() {
 		}
 	}()
 
-	go func() {
-		fmt.Println("PlanetExpressAPI running on :8080")
-		err := http.ListenAndServe(":8080", apiMux)
-		if err != nil {
-			log.Fatalln(err)
-		}
-	}()
+	fmt.Println("PlanetExpressAPI running on :8080")
+	http.ListenAndServe(":8080", apiMux)
 }
