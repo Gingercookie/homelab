@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"time"
 
-	"golang.org/x/exp/rand"
+	"math/rand/v2"
 )
 
 type CrewMember struct {
@@ -152,23 +153,25 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 
 	// Simulate random delivery time
 	go func(pkgID string) {
-		delay := time.Duration(rand.Intn(5)+1) * time.Second
+		delay := time.Duration(rand.IntN(5)+1) * time.Second
 		fmt.Printf("[INFO] Ship in-flight for %v delivering package %s\n", delay, pkgID)
 		time.Sleep(delay)
 
 		// Mark package as delivered
-		_, err := http.Get(fmt.Sprintf("%s/packages/update?id=%s&status=delivered", packageServiceURL, pkgID))
+		resp, err := http.Get(fmt.Sprintf("%s/packages/update?id=%s&status=delivered", packageServiceURL, pkgID))
 		if err != nil {
 			fmt.Println("[ERROR] Failed to update package status:", err)
 		} else {
+			resp.Body.Close()
 			fmt.Printf("[INFO] Package %s marked as delivered\n", pkgID)
 		}
 
 		// Return ship to base
-		_, err = http.Post(fmt.Sprintf("%s/ship/return", shipServiceURL), "application/json", nil)
+		resp, err = http.Post(fmt.Sprintf("%s/ship/return", shipServiceURL), "application/json", nil)
 		if err != nil {
 			fmt.Println("[ERROR] Failed to return ship:", err)
 		} else {
+			resp.Body.Close()
 			fmt.Println("[INFO] Ship returned to base.")
 		}
 	}(pkg.ID)
