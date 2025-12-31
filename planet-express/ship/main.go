@@ -3,6 +3,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 )
@@ -21,12 +22,14 @@ var (
 )
 
 func getStatus(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("[INFO] Received request for ship status")
 	mu.Lock()
 	defer mu.Unlock()
 	json.NewEncoder(w).Encode(ship)
 }
 
 func reserveShip(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("[INFO] Received request to reserve ship")
 	mu.Lock()
 	defer mu.Unlock()
 	if ship.Status == "in-flight" {
@@ -38,6 +41,7 @@ func reserveShip(w http.ResponseWriter, r *http.Request) {
 }
 
 func returnShip(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("[INFO] Received request to return ship")
 	mu.Lock()
 	defer mu.Unlock()
 	ship.Status = "available"
