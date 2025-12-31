@@ -4,6 +4,10 @@ kind: Deployment
 metadata:
   name: planetexpress-api
   namespace: planet-express
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "2112"
+    prometheus.io/path: "/metrics"
 spec:
   replicas: 1
   selector:
@@ -22,6 +26,9 @@ spec:
               value: "http://delivery-service"
           ports:
             - containerPort: 8080
+              name: http
+            - containerPort: 2112
+              name: metrics
 ---
 apiVersion: v1
 kind: Service
