@@ -3,6 +3,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -19,12 +20,19 @@ var crew = []CrewMember{
 }
 
 func getAvailableCrew(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("[INFO] Received request for crew")
 	var available []CrewMember
 	for _, member := range crew {
 		if member.Status == "available" {
+			fmt.Printf("[INFO] Crew member %s is available\n", member.Name)
 			available = append(available, member)
 		}
 	}
+
+	if len(available) == 0 {
+		fmt.Println("[WARN] No crew is available")
+	}
+
 	json.NewEncoder(w).Encode(available)
 }
 
