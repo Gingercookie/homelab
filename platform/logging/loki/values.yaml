@@ -1,82 +1,81 @@
 loki:
-  loki:
-    # Simple auth disabled for internal use
-    auth_enabled: false
+  # Simple auth disabled for internal use
+  auth_enabled: false
 
-    # Common config
-    commonConfig:
-      replication_factor: 1
+  # Common config
+  commonConfig:
+    replication_factor: 1
 
-    # Use filesystem for simple setup
-    storage:
-      type: filesystem
+  # Use filesystem for simple setup
+  storage:
+    type: filesystem
 
-    # Schema configuration
-    schemaConfig:
-      configs:
-        - from: 2024-01-01
-          store: tsdb
-          object_store: filesystem
-          schema: v13
-          index:
-            prefix: index_
-            period: 24h
+  # Schema configuration
+  schemaConfig:
+    configs:
+      - from: 2024-01-01
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
 
-    # Retention
-    limits_config:
-      retention_period: 168h  # 7 days
-      max_query_series: 1000
-      max_query_parallelism: 2
-      volume_enabled: true
+  # Retention
+  limits_config:
+    retention_period: 168h  # 7 days
+    max_query_series: 1000
+    max_query_parallelism: 2
+    volume_enabled: true
 
-  # Single binary deployment (simplest for home lab)
-  deploymentMode: SingleBinary
+# Single binary deployment (simplest for home lab)
+deploymentMode: SingleBinary
 
-  singleBinary:
-    replicas: 1
+singleBinary:
+  replicas: 1
 
-    resources:
-      requests:
-        cpu: 100m
-        memory: 256Mi
-      limits:
-        cpu: 500m
-        memory: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
 
-    persistence:
-      enabled: true
-      storageClass: local-path
-      size: 10Gi
-
-  # Gateway for Grafana to connect
-  gateway:
+  persistence:
     enabled: true
-    replicas: 1
-    resources:
-      requests:
-        cpu: 50m
-        memory: 64Mi
-      limits:
-        cpu: 200m
-        memory: 128Mi
+    storageClass: local-path
+    size: 10Gi
 
-  # Enable monitoring
-  monitoring:
-    serviceMonitor:
-      enabled: true
-    selfMonitoring:
-      enabled: false
-      grafanaAgent:
-        installOperator: false
+# Gateway for Grafana to connect
+gateway:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
 
-  # Disable test pods
-  test:
+# Enable monitoring
+monitoring:
+  serviceMonitor:
+    enabled: true
+  selfMonitoring:
     enabled: false
+    grafanaAgent:
+      installOperator: false
 
-  # Disable unused components
-  backend:
-    replicas: 0
-  read:
-    replicas: 0
-  write:
-    replicas: 0
+# Disable test pods
+test:
+  enabled: false
+
+# Disable unused components
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
