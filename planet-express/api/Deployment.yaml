@@ -32,6 +32,7 @@ kind: Service
 metadata:
   name: planetexpress-api
   namespace: planet-express
+  app: planetexpress-api
 spec:
   selector:
     app: planetexpress-api
