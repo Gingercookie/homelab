@@ -9,11 +9,18 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
 	deliveryServiceURL = getEnv("DELIVERY_SERVICE_URL", "http://delivery-service")
+
+	requestsProcessed = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "planet_express_api_requests_received_total",
+		Help: "The total number of requests received",
+	})
 )
 
 func getEnv(key, def string) string {
@@ -31,6 +38,9 @@ func handleNewDelivery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Println("[INFO] Got request for new delivery")
+
+	// Increment the prometheus counter
+	requestsProcessed.Inc()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Unable to read request", http.StatusBadRequest)
