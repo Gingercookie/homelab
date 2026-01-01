@@ -1,72 +1,74 @@
 tempo:
-  # Storage configuration - local filesystem
-  storage:
-    trace:
-      backend: local
-      local:
-        path: /var/tempo/traces
+  # Tempo configuration
+  tempo:
+    # Storage configuration - local filesystem
+    storage:
+      trace:
+        backend: local
+        local:
+          path: /var/tempo/traces
 
-  # Receivers - accept traces via OTLP
-  receivers:
+    # Receivers - accept traces via OTLP
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    # Retention - keep traces for 7 days
+    retention: 168h
+
+    # Ingester configuration
+    ingester:
+      max_block_duration: 5m
+
+    # Compactor configuration
+    compactor:
+      compaction:
+        block_retention: 168h
+
+  # Single binary mode (simplest for home lab)
+  # This runs all Tempo components in one pod
+  traces:
     otlp:
-      protocols:
-        grpc:
-          endpoint: 0.0.0.0:4317
-        http:
-          endpoint: 0.0.0.0:4318
+      grpc:
+        enabled: true
+      http:
+        enabled: true
 
-  # Retention - keep traces for 7 days
-  retention: 168h
+  # Resources - optimized for Pi
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      memory: 512Mi
 
-  # Ingester configuration
-  ingester:
-    max_block_duration: 5m
+  # Persistence
+  persistence:
+    enabled: true
+    storageClassName: local-path
+    size: 10Gi
 
-  # Compactor configuration
-  compactor:
-    compaction:
-      block_retention: 168h
+  # Service configuration
+  service:
+    type: ClusterIP
 
-# Single binary mode (simplest for home lab)
-# This runs all Tempo components in one pod
-traces:
-  otlp:
-    grpc:
-      enabled: true
-    http:
-      enabled: true
+  # ServiceMonitor for Prometheus
+  serviceMonitor:
+    enabled: true
+    interval: 30s
 
-# Resources - optimized for Pi
-resources:
-  requests:
-    cpu: 200m
-    memory: 512Mi
-  limits:
-    memory: 512Mi
+  # Single replica for home lab
+  replicas: 1
 
-# Persistence
-persistence:
-  enabled: true
-  storageClassName: local-path
-  size: 10Gi
+  # Search configuration
+  search:
+    enabled: true
 
-# Service configuration
-service:
-  type: ClusterIP
-
-# ServiceMonitor for Prometheus
-serviceMonitor:
-  enabled: true
-  interval: 30s
-
-# Single replica for home lab
-replicas: 1
-
-# Search configuration
-search:
-  enabled: true
-
-# Metrics generator (creates RED metrics from traces)
-metricsGenerator:
-  enabled: true
-  remoteWriteUrl: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write"
+  # Metrics generator (creates RED metrics from traces)
+  metricsGenerator:
+    enabled: true
+    remoteWriteUrl: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write"
