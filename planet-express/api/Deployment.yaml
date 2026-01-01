@@ -48,7 +48,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: planetexpress-api
-  namespace: monitoring
+  namespace: planet-express
 spec:
   selector:
     matchLabels:
