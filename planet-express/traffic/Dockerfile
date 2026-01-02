@@ -1,8 +1,8 @@
 FROM golang:1.25 AS builder
 WORKDIR /app
 COPY . .
-RUN go build -o delivery-simulator
+RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o delivery-simulator
 
-FROM gcr.io/distroless/base-debian12
+FROM scratch
 COPY --from=builder /app/delivery-simulator /
 ENTRYPOINT ["/delivery-simulator"]
