@@ -67,7 +67,7 @@ func sendDelivery() {
 }
 
 func main() {
-	interval := 5 * time.Second
+	interval := 1 * time.Second
 	if val := os.Getenv("INTERVAL_SECONDS"); val != "" {
 		if secs, err := time.ParseDuration(val + "s"); err == nil {
 			interval = secs
