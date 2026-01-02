@@ -72,7 +72,7 @@ func handleNewDelivery(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
-	requestsProcessed.WithLabelValues("POST", strconv.Itoa(http.StatusOK)).Inc()
+	requestsProcessed.WithLabelValues("POST", strconv.Itoa(resp.StatusCode)).Inc()
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
