@@ -21,4 +21,4 @@ spec:
             - name: API_URL
               value: "http://planetexpress-api/deliveries"
             - name: INTERVAL_SECONDS
-              value: "5"
+              value: "1"

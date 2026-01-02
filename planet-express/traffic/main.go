@@ -68,9 +68,9 @@ func sendDelivery() {
 
 func main() {
 	interval := 1 * time.Second
-	if val := os.Getenv("INTERVAL_SECONDS"); val != "" {
-		if secs, err := time.ParseDuration(val + "s"); err == nil {
-			interval = secs
+	if val, ok := os.LookupEnv("INTERVAL_SECONDS"); ok {
+		if val, err := time.ParseDuration(val + "s"); err == nil {
+			interval = val
 		}
 	}
 
