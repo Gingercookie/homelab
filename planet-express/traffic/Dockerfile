@@ -1,4 +1,4 @@
-FROM golang:1.23 as builder
+FROM golang:1.25 AS builder
 WORKDIR /app
 COPY . .
 RUN go build -o delivery-simulator

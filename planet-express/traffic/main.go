@@ -67,8 +67,6 @@ func sendDelivery() {
 }
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
-
 	interval := 5 * time.Second
 	if val := os.Getenv("INTERVAL_SECONDS"); val != "" {
 		if secs, err := time.ParseDuration(val + "s"); err == nil {
