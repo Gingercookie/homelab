@@ -18,11 +18,11 @@ kube-prometheus-stack:
             accessModes: ["ReadWriteOnce"]
             resources:
               requests:
-                storage: 15Gi
+                storage: 20Gi
 
       # Retention
-      retention: 7d
-      retentionSize: "14GB"
+      retention: 14d
+      retentionSize: "18GB"
 
       # Scraping intervals
       scrapeInterval: 60s
