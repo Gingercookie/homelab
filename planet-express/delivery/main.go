@@ -15,9 +15,7 @@ import (
 )
 
 type CrewMember struct {
-	Name   string `json:"name"`
-	Role   string `json:"role"`
-	Status string `json:"status"`
+	Name string `json:"name"`
 }
 
 type ShipStatus struct {
@@ -58,38 +56,36 @@ func getEnv(key, def string) string {
 	return def
 }
 
-func requestAvailableCrew() (CrewMember, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/crew/available", crewServiceURL))
+func requestAvailableCrew() (CrewMember, int, error) {
+	resp, err := http.Get(fmt.Sprintf("%s/crew/reserve", crewServiceURL))
 	if err != nil {
-		return CrewMember{}, err
+		return CrewMember{}, resp.StatusCode, err
 	}
 	defer resp.Body.Close()
 
-	var crew []CrewMember
+	var crew CrewMember
 	if err := json.NewDecoder(resp.Body).Decode(&crew); err != nil {
-		return CrewMember{}, err
+		return CrewMember{}, resp.StatusCode, err
 	}
-	if len(crew) == 0 {
-		return CrewMember{}, fmt.Errorf("no crew available")
-	}
-	return crew[0], nil
+
+	return crew, http.StatusOK, nil
 }
 
-func reserveShip() (ShipStatus, error) {
+func reserveShip() (ShipStatus, int, error) {
 	resp, err := http.Post(fmt.Sprintf("%s/ship/reserve", shipServiceURL), "application/json", nil)
 	if err != nil {
-		return ShipStatus{}, err
+		return ShipStatus{}, resp.StatusCode, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return ShipStatus{}, fmt.Errorf("ship reservation failed: %s", string(body))
+		return ShipStatus{}, resp.StatusCode, fmt.Errorf("ship reservation failed: %s", string(body))
 	}
 	var ship ShipStatus
 	if err := json.NewDecoder(resp.Body).Decode(&ship); err != nil {
-		return ShipStatus{}, err
+		return ShipStatus{}, resp.StatusCode, err
 	}
-	return ship, nil
+	return ship, http.StatusOK, nil
 }
 
 func createPackage(pkg Package) (Package, error) {
@@ -124,16 +120,16 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Println("[INFO] Dispatching request for available crew")
-	crew, err := requestAvailableCrew()
+	crew, statusCode, err := requestAvailableCrew()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		http.Error(w, err.Error(), statusCode)
 		return
 	}
 
 	fmt.Println("[INFO] Dispatching request to reserve ship")
-	ship, err := reserveShip()
+	ship, statusCode, err := reserveShip()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		http.Error(w, err.Error(), statusCode)
 		return
 	}
 
@@ -155,7 +151,7 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Simulate random delivery time
-	go func(pkgID string) {
+	go func(pkgID string, crew CrewMember) {
 		delay := time.Duration(rand.IntN(5)+1) * time.Second
 		fmt.Printf("[INFO] Ship in-flight for %v delivering package %s\n", delay, pkgID)
 		time.Sleep(delay)
@@ -177,7 +173,17 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 			resp.Body.Close()
 			fmt.Println("[INFO] Ship returned to base.")
 		}
-	}(pkg.ID)
+
+		// Return crew to base
+		data, _ := json.Marshal(crew)
+		resp, err = http.Post(fmt.Sprintf("%s/crew/return", crewServiceURL), "application/json", bytes.NewBuffer(data))
+		if err != nil {
+			fmt.Printf("[ERROR] Failed to return crew member %s to base:%s", crew.Name, err)
+		} else {
+			resp.Body.Close()
+			fmt.Printf("[INFO] Crew member %s returned to base.", crew.Name)
+		}
+	}(pkg.ID, crew)
 
 	// Send ticket to requester
 	w.Header().Set("Content-Type", "application/json")

@@ -8,15 +8,20 @@ import (
 	"sync"
 )
 
-type ShipStatus struct {
-	Name   string `json:"name"`
-	Status string `json:"status"` // "available" or "in-flight"
+type Ship struct {
+	Name      string `json:"name"`
+	Available bool   `json:"available"`
 }
 
+var fleet = []Ship{
+	{"Old Bessie", true},
+	{"The Dinghy", true},
+	{"Leela's Cruiser", true},
+}
 var (
-	ship = ShipStatus{
-		Name:   "Planet Express Ship",
-		Status: "available",
+	ship = Ship{
+		Name:      "Planet Express Ship",
+		Available: true,
 	}
 	mu sync.Mutex
 )
@@ -32,11 +37,11 @@ func reserveShip(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("[INFO] Received request to reserve ship")
 	mu.Lock()
 	defer mu.Unlock()
-	if ship.Status == "in-flight" {
+	if ship.Available {
 		http.Error(w, "Ship is already in use", http.StatusConflict)
 		return
 	}
-	ship.Status = "in-flight"
+	ship.Available = false
 	json.NewEncoder(w).Encode(ship)
 }
 
@@ -44,7 +49,7 @@ func returnShip(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("[INFO] Received request to return ship")
 	mu.Lock()
 	defer mu.Unlock()
-	ship.Status = "available"
+	ship.Available = true
 	json.NewEncoder(w).Encode(ship)
 }
 
