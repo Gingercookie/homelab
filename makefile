@@ -7,8 +7,8 @@ SSH_USER := will
 SSH_KEY := ~/.ssh/id_ed25519
 SSH_OPTS := -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
 
-K3S_VERSION := v1.34.2+k3s1
-SERVER_INSTALL_OPTS := --write-kubeconfig-mode 644 --disable servicelb --disable traefik --flannel-backend=none --disable-network-policy
+K3S_VERSION := v1.35.0+k3s1
+SERVER_INSTALL_OPTS := --write-kubeconfig-mode 644 --disable servicelb --disable traefik --flannel-backend=none --disable-network-policy --node-taint node-role.kubernetes.io/control-plane:NoSchedule
 AGENT_INSTALL_OPTS :=
 
 # Wait times (in seconds)
@@ -100,6 +100,7 @@ workers:
 				echo '$(YELLOW)k3s-agent is already running$(NC)'; \
 				exit 0; \
 			fi; \
+			echo "not installed yet"; \
 			curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=$(K3S_VERSION) K3S_URL=https://$(SERVER_IP):6443 K3S_TOKEN=$$K3S_TOKEN sh -s - agent $(AGENT_INSTALL_OPTS)" \
 			&& echo "$(GREEN)✓ Agent $$ip installed$(NC)" || echo "$(RED)✗ Failed$(NC)"; \
 	done
@@ -119,7 +120,7 @@ cilium:
 	@echo "Installing Cilium on cluster..."
 	@ssh $(SSH_OPTS) -i $(SSH_KEY) $(SSH_USER)@$(SERVER_IP) " \
 		export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; \
-		cilium install --version 1.16.5 \
+		cilium install --version 1.18.5 \
 			--set k8sServiceHost=$(SERVER_IP) \
 			--set k8sServicePort=6443 \
 			--wait" \
