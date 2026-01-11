@@ -4,7 +4,6 @@ kind: Deployment
 metadata:
   name: planetexpress-api
   namespace: planet-express
-  annotations:
 spec:
   replicas: 1
   selector:

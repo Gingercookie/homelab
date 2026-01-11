@@ -8,14 +8,14 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: delivery-traffic
+      app: planetexpress-traffic
   template:
     metadata:
       labels:
-        app: delivery-traffic
+        app: planetexpress-traffic
     spec:
       containers:
-        - name: delivery-traffic
+        - name: planetexpress-traffic
           image: wilgrimthepilgrim/traffic:latest
           ports:
             - containerPort: 2112
