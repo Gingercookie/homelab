@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	deliveryServiceURL = getEnv("DELIVERY_SERVICE_URL", "http://delivery-service")
+	deliveryServiceURL = getEnv("DELIVERY_SERVICE_URL", "http://planetexpress-delivery")
 
 	requestsReceived = prometheus.NewCounterVec(
 		prometheus.CounterOpts{

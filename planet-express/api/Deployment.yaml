@@ -19,7 +19,7 @@ spec:
           image: wilgrimthepilgrim/api:latest
           env:
             - name: DELIVERY_SERVICE_URL
-              value: "http://delivery-service"
+              value: "http://planetexpress-delivery"
           ports:
             - containerPort: 8080
               name: http
