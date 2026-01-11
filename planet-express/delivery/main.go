@@ -55,16 +55,16 @@ var (
 
 	requestsReceived = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "planet_express_api_requests_received_total",
-			Help: "The total number of requests received by the api",
+			Name: "planet_express_delivery_requests_received_total",
+			Help: "The total number of requests received by the delivery service",
 		},
 		[]string{"method"},
 	)
 
 	requestsProcessed = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "planet_express_api_requests_processed_total",
-			Help: "The total number of requests handled (processed) by the api",
+			Name: "planet_express_delivery_requests_processed_total",
+			Help: "The total number of requests handled (processed) by the delivery service",
 		},
 		[]string{"method", "code"},
 	)
@@ -287,6 +287,6 @@ func main() {
 		}
 	}()
 
-	fmt.Println("DeliveryService running on :8080")
+	fmt.Println("[INFO] DeliveryService running on :8080")
 	http.ListenAndServe(":8080", deliveryMux)
 }
