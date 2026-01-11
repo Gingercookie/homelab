@@ -1,21 +1,21 @@
-# manifests/delivery-simulator-deployment.yaml
+# manifests/delivery-traffic-deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: delivery-simulator
+  name: delivery-traffic
   namespace: planet-express
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: delivery-simulator
+      app: delivery-traffic
   template:
     metadata:
       labels:
-        app: delivery-simulator
+        app: delivery-traffic
     spec:
       containers:
-        - name: delivery-simulator
+        - name: delivery-traffic
           image: wilgrimthepilgrim/traffic:latest
           env:
             - name: API_URL
