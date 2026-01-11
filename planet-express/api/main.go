@@ -20,7 +20,7 @@ var (
 	requestsReceived = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "planet_express_api_requests_received_total",
-			Help: "The total number of requests received",
+			Help: "The total number of requests received by the api",
 		},
 		[]string{"method"},
 	)
@@ -28,7 +28,7 @@ var (
 	requestsProcessed = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "planet_express_api_requests_processed_total",
-			Help: "The total number of requests handled (processed)",
+			Help: "The total number of requests handled (processed) by the api",
 		},
 		[]string{"method", "code"},
 	)
@@ -90,11 +90,11 @@ func main() {
 	metricsMux.Handle("/metrics", promhttp.Handler())
 
 	go func() {
-		fmt.Println("[INFO] Prometheus metrics endpoint running on :2112")
 		err := http.ListenAndServe(":2112", metricsMux)
 		if err != nil {
 			log.Fatalln(err)
 		}
+		fmt.Println("[INFO] Prometheus metrics endpoint running on :2112")
 	}()
 
 	fmt.Println("PlanetExpressAPI running on :8080")
