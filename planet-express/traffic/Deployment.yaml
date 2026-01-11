@@ -17,6 +17,9 @@ spec:
       containers:
         - name: delivery-traffic
           image: wilgrimthepilgrim/traffic:latest
+          ports:
+            - containerPort: 2112
+              name: metrics
           env:
             - name: API_URL
               value: "http://planetexpress-api/deliveries"
