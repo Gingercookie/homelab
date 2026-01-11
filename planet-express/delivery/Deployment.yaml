@@ -36,6 +36,8 @@ kind: Service
 metadata:
   name: planetexpress-delivery
   namespace: planet-express
+  labels:
+    app: planetexpress-delivery
 spec:
   selector:
     app: planetexpress-delivery
