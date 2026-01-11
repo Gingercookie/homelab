@@ -19,8 +19,8 @@ type CrewMember struct {
 }
 
 type ShipStatus struct {
-	Name   string `json:"name"`
-	Status string `json:"status"`
+	Name      string `json:"name"`
+	Available bool   `json:"available"`
 }
 
 type Package struct {
@@ -57,53 +57,91 @@ func getEnv(key, def string) string {
 }
 
 func requestAvailableCrew() (CrewMember, int, error) {
+	fmt.Printf("[DEBUG] Sending request to %s\n", fmt.Sprintf("%s/crew/reserve", crewServiceURL))
 	resp, err := http.Get(fmt.Sprintf("%s/crew/reserve", crewServiceURL))
 	if err != nil {
-		return CrewMember{}, resp.StatusCode, err
+		return CrewMember{}, http.StatusServiceUnavailable, err
 	}
 	defer resp.Body.Close()
 
+	fmt.Printf("[DEBUG] Got response from crew service\n")
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return CrewMember{}, resp.StatusCode, fmt.Errorf("error reading response body")
+	}
+	fmt.Printf("[DEBUG] Parsed body of response: %s", string(bodyBytes))
+
+	if resp.StatusCode != http.StatusOK {
+		return CrewMember{}, resp.StatusCode, fmt.Errorf("crew service error: %s", bodyBytes)
+	}
+	fmt.Printf("[DEBUG] Status code is OKAY\n")
+
 	var crew CrewMember
-	if err := json.NewDecoder(resp.Body).Decode(&crew); err != nil {
+	if err := json.Unmarshal(bodyBytes, &crew); err != nil {
 		return CrewMember{}, resp.StatusCode, err
 	}
+	fmt.Printf("[DEBUG] Unmarshaled into %s\n", crew)
 
 	return crew, http.StatusOK, nil
 }
 
 func reserveShip() (ShipStatus, int, error) {
+	fmt.Printf("[DEBUG] Sending request to %s\n", fmt.Sprintf("%s/ship/reserve", shipServiceURL))
 	resp, err := http.Post(fmt.Sprintf("%s/ship/reserve", shipServiceURL), "application/json", nil)
 	if err != nil {
-		return ShipStatus{}, resp.StatusCode, err
+		return ShipStatus{}, http.StatusServiceUnavailable, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return ShipStatus{}, resp.StatusCode, fmt.Errorf("ship reservation failed: %s", string(body))
+
+	fmt.Printf("[DEBUG] Got response from ship service\n")
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ShipStatus{}, resp.StatusCode, fmt.Errorf("error reading response body")
 	}
+	fmt.Printf("[DEBUG] Parsed body of response: %s", string(bodyBytes))
+
+	if resp.StatusCode != http.StatusOK {
+		return ShipStatus{}, resp.StatusCode, fmt.Errorf("ship reservation failed: %s", string(bodyBytes))
+	}
+
+	fmt.Printf("[DEBUG] Status code is OKAY\n")
 	var ship ShipStatus
-	if err := json.NewDecoder(resp.Body).Decode(&ship); err != nil {
+	if err := json.Unmarshal(bodyBytes, &ship); err != nil {
 		return ShipStatus{}, resp.StatusCode, err
 	}
-	return ship, http.StatusOK, nil
+	fmt.Printf("[DEBUG] Unmarshaled into %v\n", ship)
+
+	return ship, resp.StatusCode, nil
 }
 
-func createPackage(pkg Package) (Package, error) {
+func createPackage(pkg Package) (Package, int, error) {
+	fmt.Printf("[DEBUG] Sending request to %s\n", fmt.Sprintf("%s/packages", packageServiceURL))
+
 	data, _ := json.Marshal(pkg)
 	resp, err := http.Post(fmt.Sprintf("%s/packages", packageServiceURL), "application/json", bytes.NewBuffer(data))
 	if err != nil {
-		return Package{}, err
+		return Package{}, http.StatusServiceUnavailable, err
 	}
 	defer resp.Body.Close()
+
+	fmt.Printf("[DEBUG] Got response from package service\n")
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return Package{}, resp.StatusCode, fmt.Errorf("error reading response body")
+	}
+
 	if resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
-		return Package{}, fmt.Errorf("package creation failed: %s", string(body))
+		return Package{}, resp.StatusCode, fmt.Errorf("package creation failed: %s", string(bodyBytes))
 	}
+
+	fmt.Printf("[DEBUG] Status code is OKAY\n")
 	var created Package
-	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil {
-		return Package{}, err
+	if err := json.Unmarshal(bodyBytes, &created); err != nil {
+		return Package{}, resp.StatusCode, err
 	}
-	return created, nil
+	fmt.Printf("[DEBUG] Unmarshaled into %s\n", created)
+
+	return created, resp.StatusCode, nil
 }
 
 func handleDelivery(w http.ResponseWriter, r *http.Request) {
@@ -125,6 +163,7 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), statusCode)
 		return
 	}
+	fmt.Printf("[DEBUG] Got crew member %s\n", crew.Name)
 
 	fmt.Println("[INFO] Dispatching request to reserve ship")
 	ship, statusCode, err := reserveShip()
@@ -133,13 +172,20 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pkg, err := createPackage(Package{
+	fmt.Println("[INFO] Got both crew member and ship")
+	if (crew == CrewMember{}) || (ship == ShipStatus{}) {
+		http.Error(w, "Unable to get ship or crew", http.StatusServiceUnavailable)
+		return
+	}
+
+	fmt.Println("[INFO] Dispatching request to create new package")
+	pkg, statusCode, err := createPackage(Package{
 		Recipient: req.Recipient,
 		Address:   req.Address,
 		Contents:  req.Contents,
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		http.Error(w, err.Error(), statusCode)
 		return
 	}
 
@@ -149,6 +195,7 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 		Ship:    ship,
 		Package: pkg,
 	}
+	fmt.Printf("[INFO] Delivery ticket created: %v\n", ticket)
 
 	// Simulate random delivery time
 	go func(pkgID string, crew CrewMember) {
@@ -166,6 +213,7 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Return ship to base
+		fmt.Println("[INFO] Returning ship to base")
 		resp, err = http.Post(fmt.Sprintf("%s/ship/return", shipServiceURL), "application/json", nil)
 		if err != nil {
 			fmt.Println("[ERROR] Failed to return ship:", err)
@@ -175,6 +223,7 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Return crew to base
+		fmt.Printf("[INFO] Returning crew member %s to base", crew.Name)
 		data, _ := json.Marshal(crew)
 		resp, err = http.Post(fmt.Sprintf("%s/crew/return", crewServiceURL), "application/json", bytes.NewBuffer(data))
 		if err != nil {

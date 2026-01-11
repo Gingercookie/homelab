@@ -91,7 +91,7 @@ func main() {
 	metricsMux.Handle("/metrics", promhttp.Handler())
 
 	go func() {
-		fmt.Println("Prometheus metrics endpoint running on :2112")
+		fmt.Println("[INFO] Prometheus metrics endpoint running on :2112")
 		err := http.ListenAndServe(":2112", metricsMux)
 		if err != nil {
 			log.Fatalln(err)

@@ -27,21 +27,26 @@ var crew = []CrewMember{
 
 func reserveCrew(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("[INFO] Received request to reserve a crew member")
-	var available []CrewMember
+	found := false
 	for i := range crew {
 		if crew[i].Lock.TryLock() {
 			if crew[i].Available {
+				found = true
 				fmt.Printf("[INFO] Crew member %s is available\n", crew[i].Name)
 				crew[i].Available = false
+				fmt.Printf("[INFO] Crew member %s is no longer available\n", crew[i].Name)
 				json.NewEncoder(w).Encode(CrewResponse{crew[i].Name})
 			}
 			crew[i].Lock.Unlock()
+			// Need to unlock the mutex before we return
+			if found {
+				return
+			}
 		}
 	}
 
-	if len(available) == 0 {
-		fmt.Println("[WARN] No crew is available")
-	}
+	fmt.Println("[WARN] No crew is available")
+	http.Error(w, "No crew available", http.StatusServiceUnavailable)
 }
 
 func returnCrew(w http.ResponseWriter, r *http.Request) {
@@ -52,12 +57,19 @@ func returnCrew(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to unmarshal data into crew member", 503)
 	}
 
-	c.Lock.Lock()
-	defer c.Lock.Unlock()
-	c.Available = true
+	for i := range crew {
+		if crew[i].Name == c.Name {
+			crew[i].Lock.Lock()
+			crew[i].Available = true
+			crew[i].Lock.Unlock()
 
-	fmt.Printf("Crew member %s was returned successfully\n", c.Name)
-	json.NewEncoder(w).Encode(CrewResponse{c.Name})
+			fmt.Printf("[INFO] Crew member %s was returned successfully\n", c.Name)
+			json.NewEncoder(w).Encode(CrewResponse{c.Name})
+			return
+		}
+	}
+
+	http.Error(w, "Crew member not found", http.StatusNotFound)
 }
 
 func main() {

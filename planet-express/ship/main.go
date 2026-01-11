@@ -37,7 +37,7 @@ func reserveShip(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("[INFO] Received request to reserve ship")
 	mu.Lock()
 	defer mu.Unlock()
-	if ship.Available {
+	if !ship.Available {
 		http.Error(w, "Ship is already in use", http.StatusConflict)
 		return
 	}
