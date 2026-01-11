@@ -6,12 +6,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"strconv"
 	"time"
 
 	"math/rand/v2"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type CrewMember struct {
@@ -47,6 +52,22 @@ var (
 	crewServiceURL    = getEnv("CREW_SERVICE_URL", "http://crew-service")
 	shipServiceURL    = getEnv("SHIP_SERVICE_URL", "http://ship-service")
 	packageServiceURL = getEnv("PACKAGE_SERVICE_URL", "http://package-service")
+
+	requestsReceived = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "planet_express_api_requests_received_total",
+			Help: "The total number of requests received by the api",
+		},
+		[]string{"method"},
+	)
+
+	requestsProcessed = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "planet_express_api_requests_processed_total",
+			Help: "The total number of requests handled (processed) by the api",
+		},
+		[]string{"method", "code"},
+	)
 )
 
 func getEnv(key, def string) string {
@@ -145,15 +166,19 @@ func createPackage(pkg Package) (Package, int, error) {
 }
 
 func handleDelivery(w http.ResponseWriter, r *http.Request) {
+	requestsReceived.WithLabelValues(r.Method).Inc()
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(http.StatusMethodNotAllowed)).Inc()
 		return
 	}
 
-	fmt.Println("[INFO] Got request for new delivery")
+	fmt.Println("[DEBUG] Got request for new delivery")
 	var req DeliveryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(http.StatusBadRequest)).Inc()
 		return
 	}
 
@@ -161,6 +186,7 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 	crew, statusCode, err := requestAvailableCrew()
 	if err != nil {
 		http.Error(w, err.Error(), statusCode)
+		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(statusCode)).Inc()
 		return
 	}
 	fmt.Printf("[DEBUG] Got crew member %s\n", crew.Name)
@@ -169,12 +195,14 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 	ship, statusCode, err := reserveShip()
 	if err != nil {
 		http.Error(w, err.Error(), statusCode)
+		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(statusCode)).Inc()
 		return
 	}
 
 	fmt.Println("[INFO] Got both crew member and ship")
 	if (crew == CrewMember{}) || (ship == ShipStatus{}) {
 		http.Error(w, "Unable to get ship or crew", http.StatusServiceUnavailable)
+		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(http.StatusServiceUnavailable)).Inc()
 		return
 	}
 
@@ -186,6 +214,7 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		http.Error(w, err.Error(), statusCode)
+		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(statusCode)).Inc()
 		return
 	}
 
@@ -237,10 +266,27 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 	// Send ticket to requester
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(ticket)
+	requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(http.StatusOK)).Inc()
 }
 
 func main() {
-	http.HandleFunc("/deliveries", handleDelivery)
+	deliveryMux := http.NewServeMux()
+	deliveryMux.HandleFunc("/deliveries", handleDelivery)
+
+	prometheus.MustRegister(requestsReceived)
+	prometheus.MustRegister(requestsProcessed)
+
+	metricsMux := http.NewServeMux()
+	metricsMux.Handle("/metrics", promhttp.Handler())
+
+	go func() {
+		fmt.Println("[INFO] Prometheus metrics endpoint running on :2112")
+		err := http.ListenAndServe(":2112", metricsMux)
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}()
+
 	fmt.Println("DeliveryService running on :8080")
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":8080", deliveryMux)
 }
