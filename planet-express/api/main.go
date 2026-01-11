@@ -45,19 +45,18 @@ func getEnv(key, def string) string {
 func handleNewDelivery(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("[INFO] Got request for new delivery")
 
+	requestsReceived.WithLabelValues(r.Method).Inc()
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
-		requestsReceived.WithLabelValues(r.Method).Inc()
 		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(http.StatusMethodNotAllowed)).Inc()
 		return
 	}
 
-	requestsReceived.WithLabelValues("POST").Inc()
-
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Unable to read request", http.StatusBadRequest)
-		requestsProcessed.WithLabelValues("POST", strconv.Itoa(http.StatusBadRequest)).Inc()
+		requestsProcessed.WithLabelValues(http.MethodPost, strconv.Itoa(http.StatusBadRequest)).Inc()
 		return
 	}
 
@@ -65,14 +64,14 @@ func handleNewDelivery(w http.ResponseWriter, r *http.Request) {
 	resp, err := http.Post(fmt.Sprintf("%s/deliveries", deliveryServiceURL), "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		http.Error(w, "Error contacting DeliveryService: "+err.Error(), http.StatusServiceUnavailable)
-		requestsProcessed.WithLabelValues("POST", strconv.Itoa(http.StatusServiceUnavailable)).Inc()
+		requestsProcessed.WithLabelValues(http.MethodPost, strconv.Itoa(http.StatusServiceUnavailable)).Inc()
 		return
 	}
 	defer resp.Body.Close()
 
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
-	requestsProcessed.WithLabelValues("POST", strconv.Itoa(resp.StatusCode)).Inc()
+	requestsProcessed.WithLabelValues(http.MethodPost, strconv.Itoa(resp.StatusCode)).Inc()
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
