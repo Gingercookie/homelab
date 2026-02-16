@@ -150,9 +150,9 @@ kubeconfig:
 		exit 1; \
 	}
 	@scp $(SSH_OPTS) -i $(SSH_KEY) $(SSH_USER)@$(SERVER_IP):/etc/rancher/k3s/k3s.yaml k3s.yaml
-	@yq '.clusters[0].cluster.certificate-authority-data' k3s.yaml | base64 -d > cluster-ca-data.crt
-	@yq '.users[0].user.client-certificate-data' k3s.yaml | base64 -d > client-cert-data.crt
-	@yq '.users[0].user.client-key-data' k3s.yaml | base64 -d > client-key-data.key
+	@yq -r '.clusters[0].cluster."certificate-authority-data"' k3s.yaml | base64 -d > cluster-ca-data.crt
+	@yq -r '.users[0].user."client-certificate-data"' k3s.yaml | base64 -d > client-cert-data.crt
+	@yq -r '.users[0].user."client-key-data"' k3s.yaml | base64 -d > client-key-data.key
 	@echo "$(BLUE)Configuring kubectl context 'pi'...$(NC)"
 	@kubectl config set-cluster pi --server=https://$(SERVER_IP):6443
 	@kubectl config set-cluster pi --embed-certs --certificate-authority='cluster-ca-data.crt'
