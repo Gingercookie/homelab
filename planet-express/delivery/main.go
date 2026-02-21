@@ -44,7 +44,7 @@ type DeliveryRequest struct {
 
 type DeliveryTicket struct {
 	Crew     CrewMember `json:"crew"`
-	ShipInfo ShipInfo   `json:"ship"`
+	Ship	 ShipInfo   `json:"ship"`
 	Package  Package    `json:"package"`
 }
 
@@ -106,7 +106,7 @@ func requestAvailableCrew() (CrewMember, int, error) {
 	return crew, http.StatusOK, nil
 }
 
-func reserveShipInfo() (ShipInfo, int, error) {
+func reserveShip) (ShipInfo, int, error) {
 	fmt.Printf("[DEBUG] Sending request to %s\n", fmt.Sprintf("%s/ship/reserve", shipServiceURL))
 	resp, err := http.Post(fmt.Sprintf("%s/ship/reserve", shipServiceURL), "application/json", nil)
 	if err != nil {
@@ -192,7 +192,7 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("[DEBUG] Got crew member %s\n", crew.Name)
 
 	fmt.Println("[INFO] Dispatching request to reserve ship")
-	ship, statusCode, err := reserveShipInfo()
+	ship, statusCode, err := reserveShip()
 	if err != nil {
 		http.Error(w, err.Error(), statusCode)
 		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(statusCode)).Inc()
@@ -221,7 +221,7 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 	// Build the delivery ticket
 	ticket := DeliveryTicket{
 		Crew:     crew,
-		ShipInfo: ship,
+		Ship:	  ship,
 		Package:  pkg,
 	}
 	fmt.Printf("[INFO] Delivery ticket created: %v\n", ticket)
