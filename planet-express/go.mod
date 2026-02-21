@@ -1,6 +1,6 @@
 module github.com/gingercookie/planet-express
 
-go 1.24.4
+go 1.26
 
 require github.com/prometheus/client_golang v1.23.2
 
