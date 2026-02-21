@@ -23,7 +23,7 @@ type CrewMember struct {
 	Name string `json:"name"`
 }
 
-type Ship struct {
+type ShipInfo struct {
 	Name      string `json:"name"`
 	Available bool   `json:"available"`
 }
@@ -43,9 +43,9 @@ type DeliveryRequest struct {
 }
 
 type DeliveryTicket struct {
-	Crew    CrewMember `json:"crew"`
-	Ship    Ship       `json:"ship"`
-	Package Package    `json:"package"`
+	Crew     CrewMember `json:"crew"`
+	ShipInfo ShipInfo   `json:"ship"`
+	Package  Package    `json:"package"`
 }
 
 var (
@@ -106,29 +106,29 @@ func requestAvailableCrew() (CrewMember, int, error) {
 	return crew, http.StatusOK, nil
 }
 
-func reserveShip() (Ship, int, error) {
+func reserveShipInfo() (ShipInfo, int, error) {
 	fmt.Printf("[DEBUG] Sending request to %s\n", fmt.Sprintf("%s/ship/reserve", shipServiceURL))
 	resp, err := http.Post(fmt.Sprintf("%s/ship/reserve", shipServiceURL), "application/json", nil)
 	if err != nil {
-		return Ship{}, http.StatusServiceUnavailable, err
+		return ShipInfo{}, http.StatusServiceUnavailable, err
 	}
 	defer resp.Body.Close()
 
 	fmt.Printf("[DEBUG] Got response from ship service\n")
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return Ship{}, resp.StatusCode, fmt.Errorf("error reading response body")
+		return ShipInfo{}, resp.StatusCode, fmt.Errorf("error reading response body")
 	}
 	fmt.Printf("[DEBUG] Parsed body of response: %s", string(bodyBytes))
 
 	if resp.StatusCode != http.StatusOK {
-		return Ship{}, resp.StatusCode, fmt.Errorf("ship reservation failed: %s", string(bodyBytes))
+		return ShipInfo{}, resp.StatusCode, fmt.Errorf("ship reservation failed: %s", string(bodyBytes))
 	}
 
 	fmt.Printf("[DEBUG] Status code is OKAY\n")
-	var ship Ship
+	var ship ShipInfo
 	if err := json.Unmarshal(bodyBytes, &ship); err != nil {
-		return Ship{}, resp.StatusCode, err
+		return ShipInfo{}, resp.StatusCode, err
 	}
 	fmt.Printf("[DEBUG] Unmarshaled into %v\n", ship)
 
@@ -192,7 +192,7 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("[DEBUG] Got crew member %s\n", crew.Name)
 
 	fmt.Println("[INFO] Dispatching request to reserve ship")
-	ship, statusCode, err := reserveShip()
+	ship, statusCode, err := reserveShipInfo()
 	if err != nil {
 		http.Error(w, err.Error(), statusCode)
 		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(statusCode)).Inc()
@@ -200,7 +200,7 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Println("[INFO] Got both crew member and ship")
-	if (crew == CrewMember{}) || (ship == Ship{}) {
+	if (crew == CrewMember{}) || (ship == ShipInfo{}) {
 		http.Error(w, "Unable to get ship or crew", http.StatusServiceUnavailable)
 		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(http.StatusServiceUnavailable)).Inc()
 		return
@@ -220,16 +220,16 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 
 	// Build the delivery ticket
 	ticket := DeliveryTicket{
-		Crew:    crew,
-		Ship:    ship,
-		Package: pkg,
+		Crew:     crew,
+		ShipInfo: ship,
+		Package:  pkg,
 	}
 	fmt.Printf("[INFO] Delivery ticket created: %v\n", ticket)
 
 	// Simulate random delivery time
-	go func(pkgID string, crew CrewMember, ship Ship) {
+	go func(pkgID string, crew CrewMember, ship ShipInfo) {
 		delay := time.Duration(rand.IntN(5)+1) * time.Second
-		fmt.Printf("[INFO] Ship in-flight for %v delivering package %s\n", delay, pkgID)
+		fmt.Printf("[INFO] ship in-flight for %v delivering package %s\n", delay, pkgID)
 		time.Sleep(delay)
 
 		// Mark package as delivered
@@ -269,7 +269,7 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 			fmt.Println("[ERROR] Failed to return ship:", err)
 		} else {
 			resp.Body.Close()
-			fmt.Println("[INFO] Ship returned to base.")
+			fmt.Println("[INFO] ship returned to base.")
 		}
 	}(pkg.ID, crew, ship)
 
