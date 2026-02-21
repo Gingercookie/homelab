@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"net/http"
 	"sync"
-	"time"
 )
 
 type Package struct {
@@ -22,10 +21,6 @@ var (
 	packages = make(map[string]Package)
 	mu       sync.Mutex
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 func createPackage(w http.ResponseWriter, r *http.Request) {
 	var pkg Package
@@ -42,7 +37,7 @@ func createPackage(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(pkg)
 }
 
-func listPackages(w http.ResponseWriter, r *http.Request) {
+func listPackages(w http.ResponseWriter, _ *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
 	list := make([]Package, 0, len(packages))
@@ -78,7 +73,7 @@ func updatePackageStatus(w http.ResponseWriter, r *http.Request) {
 		pkg.Status = status
 		packages[id] = pkg
 		json.NewEncoder(w).Encode(pkg)
-		fmt.Printf("[INFO] Successfully updated status of package %s\n", pkg)
+		fmt.Printf("[INFO] Successfully updated status of package %s\n", pkg.ID)
 	} else {
 		http.NotFound(w, r)
 		fmt.Println("[WARN] Package was not found!")
