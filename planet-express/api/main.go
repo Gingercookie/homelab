@@ -70,7 +70,9 @@ func handleNewDelivery(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	if _, err = io.Copy(w, resp.Body); err != nil {
+		log.Printf("[ERROR] Failed to copy response body: %v", err)
+	}
 	requestsProcessed.WithLabelValues(http.MethodPost, strconv.Itoa(resp.StatusCode)).Inc()
 }
 
@@ -98,5 +100,7 @@ func main() {
 	}()
 
 	fmt.Println("PlanetExpressAPI running on :8080")
-	http.ListenAndServe(":8080", apiMux)
+	if err := http.ListenAndServe(":8080", apiMux); err != nil {
+		log.Fatalf("server error: %v", err)
+	}
 }

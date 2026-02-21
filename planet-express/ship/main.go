@@ -4,6 +4,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"sync"
 )
@@ -11,7 +12,7 @@ import (
 type Ship struct {
 	Name      string     `json:"name"`
 	Available bool       `json:"available"`
-	Lock      sync.Mutex `json:"lock"`
+	Lock      sync.Mutex `json:"-"`
 }
 
 type ShipInfo struct {
@@ -86,6 +87,7 @@ func returnShip(w http.ResponseWriter, r *http.Request) {
 	var ship ShipInfo
 	if err := json.NewDecoder(r.Body).Decode(&ship); err != nil {
 		http.Error(w, "Failed to unmarshal data into ship member", http.StatusServiceUnavailable)
+		return
 	}
 
 	for i := range fleet {
@@ -107,5 +109,7 @@ func main() {
 	http.HandleFunc("/ship/status", getStatus)
 	http.HandleFunc("/ship/reserve", reserveShip)
 	http.HandleFunc("/ship/return", returnShip)
-	http.ListenAndServe(":8080", nil)
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		log.Fatalf("server error: %v", err)
+	}
 }

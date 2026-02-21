@@ -4,7 +4,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
+	"log"
+	"math/rand/v2"
 	"net/http"
 	"sync"
 )
@@ -96,6 +97,7 @@ func deletePackage(w http.ResponseWriter, r *http.Request) {
 	defer mu.Unlock()
 	if _, ok := packages[id]; !ok {
 		http.NotFound(w, r)
+		return
 	}
 
 	delete(packages, id)
@@ -106,7 +108,7 @@ func randomID() string {
 	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	b := make([]byte, 8)
 	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
+		b[i] = letters[rand.IntN(len(letters))]
 	}
 	return string(b)
 }
@@ -122,5 +124,7 @@ func main() {
 	http.HandleFunc("/packages/get", getPackage)
 	http.HandleFunc("/packages/update", updatePackageStatus)
 	http.HandleFunc("/packages/delete", deletePackage)
-	http.ListenAndServe(":8080", nil)
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		log.Fatalf("server error: %v", err)
+	}
 }

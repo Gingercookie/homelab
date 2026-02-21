@@ -4,6 +4,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"sync"
 )
@@ -12,7 +13,7 @@ type CrewMember struct {
 	Name      string     `json:"name"`
 	Role      string     `json:"role"`
 	Available bool       `json:"available"`
-	Lock      sync.Mutex `json:"lock"`
+	Lock      sync.Mutex `json:"-"`
 }
 
 type CrewResponse struct {
@@ -55,6 +56,7 @@ func returnCrew(w http.ResponseWriter, r *http.Request) {
 	var c CrewMember
 	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
 		http.Error(w, "Failed to unmarshal data into crew member", http.StatusServiceUnavailable)
+		return
 	}
 
 	for i := range crew {
@@ -75,5 +77,7 @@ func returnCrew(w http.ResponseWriter, r *http.Request) {
 func main() {
 	http.HandleFunc("/crew/reserve", reserveCrew)
 	http.HandleFunc("/crew/return", returnCrew)
-	http.ListenAndServe(":8080", nil)
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		log.Fatalf("server error: %v", err)
+	}
 }
