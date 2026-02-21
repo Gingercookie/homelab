@@ -80,6 +80,28 @@ func updatePackageStatus(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func deletePackage(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("[INFO] Received request to delete package")
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "Missing package id in delete request", http.StatusBadRequest)
+		return
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if _, ok := packages[id]; !ok {
+		http.NotFound(w, r)
+	}
+
+	delete(packages, id)
+	w.WriteHeader(http.StatusOK)
+}
+
 func randomID() string {
 	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	b := make([]byte, 8)
@@ -99,5 +121,6 @@ func main() {
 	})
 	http.HandleFunc("/packages/get", getPackage)
 	http.HandleFunc("/packages/update", updatePackageStatus)
+	http.HandleFunc("/packages/delete", deletePackage)
 	http.ListenAndServe(":8080", nil)
 }

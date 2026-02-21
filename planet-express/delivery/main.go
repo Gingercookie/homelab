@@ -241,6 +241,15 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("[INFO] Package %s marked as delivered\n", pkgID)
 		}
 
+		// Delete package from map to prevent boundless growth
+		resp, err = http.Get(fmt.Sprintf("%s/packages/delete?id=%s", packageServiceURL, pkgID))
+		if err != nil {
+			fmt.Println("[ERROR] Failed to delete package from list:", err)
+		} else {
+			resp.Body.Close()
+			fmt.Printf("[INFO] Package %s deleted successfully\n", pkgID)
+		}
+
 		// Return ship to base
 		fmt.Println("[INFO] Returning ship to base")
 		resp, err = http.Post(fmt.Sprintf("%s/ship/return", shipServiceURL), "application/json", nil)
