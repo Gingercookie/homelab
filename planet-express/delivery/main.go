@@ -106,7 +106,7 @@ func requestAvailableCrew() (CrewMember, int, error) {
 	return crew, http.StatusOK, nil
 }
 
-func reserveShip) (ShipInfo, int, error) {
+func reserveShip(ShipInfo, int, error) {
 	fmt.Printf("[DEBUG] Sending request to %s\n", fmt.Sprintf("%s/ship/reserve", shipServiceURL))
 	resp, err := http.Post(fmt.Sprintf("%s/ship/reserve", shipServiceURL), "application/json", nil)
 	if err != nil {
