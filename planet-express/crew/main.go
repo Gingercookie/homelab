@@ -3,9 +3,9 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"sync"
 )
 
@@ -27,15 +27,15 @@ var crew = []CrewMember{
 }
 
 func reserveCrew(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("[INFO] Received request to reserve a crew member")
+	slog.Info("Received request to reserve a crew member")
 	found := false
 	for i := range crew {
 		if crew[i].Lock.TryLock() {
 			if crew[i].Available {
 				found = true
-				fmt.Printf("[INFO] Crew member %s is available\n", crew[i].Name)
+				slog.Info("Crew member is available", "name", crew[i].Name)
 				crew[i].Available = false
-				fmt.Printf("[INFO] Crew member %s has been reserved and is no longer available\n", crew[i].Name)
+				slog.Info("Crew member has been reserved", "name", crew[i].Name)
 				json.NewEncoder(w).Encode(CrewResponse{crew[i].Name})
 			}
 			// Need to unlock the mutex before we return
@@ -46,12 +46,12 @@ func reserveCrew(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	fmt.Println("[WARN] No crew is available")
+	slog.Warn("No crew is available")
 	http.Error(w, "No crew available", http.StatusServiceUnavailable)
 }
 
 func returnCrew(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("[INFO] Received request to return a crew member")
+	slog.Info("Received request to return a crew member")
 
 	var c CrewMember
 	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
@@ -65,7 +65,7 @@ func returnCrew(w http.ResponseWriter, r *http.Request) {
 			crew[i].Available = true
 			crew[i].Lock.Unlock()
 
-			fmt.Printf("[INFO] Crew member %s was returned successfully\n", c.Name)
+			slog.Info("Crew member returned successfully", "name", c.Name)
 			w.WriteHeader(http.StatusOK)
 			return
 		}
@@ -75,9 +75,20 @@ func returnCrew(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	levelStr := os.Getenv("LOG_LEVEL")
+	if levelStr == "" {
+		levelStr = "INFO"
+	}
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(levelStr)); err != nil {
+		level = slog.LevelInfo
+	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
+
 	http.HandleFunc("/crew/reserve", reserveCrew)
 	http.HandleFunc("/crew/return", returnCrew)
 	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatalf("server error: %v", err)
+		slog.Error("server error", "err", err)
+		os.Exit(1)
 	}
 }

@@ -20,6 +20,8 @@ spec:
           env:
             - name: DELIVERY_SERVICE_URL
               value: "http://planetexpress-delivery"
+            - name: LOG_LEVEL
+              value: "INFO"
           ports:
             - containerPort: 8080
               name: http

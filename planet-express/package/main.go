@@ -3,10 +3,10 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
+	"log/slog"
 	"math/rand/v2"
 	"net/http"
+	"os"
 	"sync"
 )
 
@@ -49,7 +49,7 @@ func listPackages(w http.ResponseWriter, _ *http.Request) {
 }
 
 func getPackage(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("[INFO] Received request to get a package")
+	slog.Info("Received request to get a package")
 	id := r.URL.Query().Get("id")
 	mu.Lock()
 	defer mu.Unlock()
@@ -61,7 +61,7 @@ func getPackage(w http.ResponseWriter, r *http.Request) {
 }
 
 func updatePackageStatus(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("[INFO] Received request to update package status")
+	slog.Info("Received request to update package status")
 	id := r.URL.Query().Get("id")
 	status := r.URL.Query().Get("status")
 	if status == "" {
@@ -74,15 +74,15 @@ func updatePackageStatus(w http.ResponseWriter, r *http.Request) {
 		pkg.Status = status
 		packages[id] = pkg
 		json.NewEncoder(w).Encode(pkg)
-		fmt.Printf("[INFO] Successfully updated status of package %s\n", pkg.ID)
+		slog.Info("Successfully updated package status", "id", pkg.ID, "status", status)
 	} else {
 		http.NotFound(w, r)
-		fmt.Println("[WARN] Package was not found!")
+		slog.Warn("Package was not found", "id", id)
 	}
 }
 
 func deletePackage(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("[INFO] Received request to delete package")
+	slog.Info("Received request to delete package")
 	if r.Method != http.MethodDelete {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -114,6 +114,16 @@ func randomID() string {
 }
 
 func main() {
+	levelStr := os.Getenv("LOG_LEVEL")
+	if levelStr == "" {
+		levelStr = "INFO"
+	}
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(levelStr)); err != nil {
+		level = slog.LevelInfo
+	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
+
 	http.HandleFunc("/packages", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			createPackage(w, r)
@@ -125,6 +135,7 @@ func main() {
 	http.HandleFunc("/packages/update", updatePackageStatus)
 	http.HandleFunc("/packages/delete", deletePackage)
 	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatalf("server error: %v", err)
+		slog.Error("server error", "err", err)
+		os.Exit(1)
 	}
 }
