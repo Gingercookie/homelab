@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"net/http"
 	"os"
 	"time"
@@ -56,7 +56,7 @@ var contents = []string{
 }
 
 func randomChoice(list []string) string {
-	return list[rand.Intn(len(list))]
+	return list[rand.IntN(len(list))]
 }
 
 func sendDelivery() {

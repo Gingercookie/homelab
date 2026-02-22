@@ -138,7 +138,10 @@ func reserveShip() (ShipInfo, int, error) {
 func createPackage(pkg Package) (Package, int, error) {
 	fmt.Printf("[DEBUG] Sending request to %s\n", fmt.Sprintf("%s/packages", packageServiceURL))
 
-	data, _ := json.Marshal(pkg)
+	data, err := json.Marshal(pkg)
+	if err != nil {
+		return Package{}, http.StatusInternalServerError, fmt.Errorf("failed to marshal package: %w", err)
+	}
 	resp, err := http.Post(fmt.Sprintf("%s/packages", packageServiceURL), "application/json", bytes.NewBuffer(data))
 	if err != nil {
 		return Package{}, http.StatusServiceUnavailable, err
@@ -242,34 +245,47 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Delete package from map to prevent boundless growth
-		resp, err = http.Get(fmt.Sprintf("%s/packages/delete?id=%s", packageServiceURL, pkgID))
+		deleteReq, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/packages/delete?id=%s", packageServiceURL, pkgID), nil)
 		if err != nil {
-			fmt.Println("[ERROR] Failed to delete package from list:", err)
+			fmt.Println("[ERROR] Failed to create delete request:", err)
 		} else {
-			resp.Body.Close()
-			fmt.Printf("[INFO] Package %s deleted successfully\n", pkgID)
+			resp, err = http.DefaultClient.Do(deleteReq)
+			if err != nil {
+				fmt.Println("[ERROR] Failed to delete package from list:", err)
+			} else {
+				resp.Body.Close()
+				fmt.Printf("[INFO] Package %s deleted successfully\n", pkgID)
+			}
 		}
 
 		// Return crew to base
 		fmt.Printf("[INFO] Returning crew member %s to base", crew.Name)
-		data, _ := json.Marshal(crew)
-		resp, err = http.Post(fmt.Sprintf("%s/crew/return", crewServiceURL), "application/json", bytes.NewBuffer(data))
+		data, err := json.Marshal(crew)
 		if err != nil {
-			fmt.Printf("[ERROR] Failed to return crew member %s to base:%s", crew.Name, err)
+			fmt.Printf("[ERROR] Failed to marshal crew member %s: %v\n", crew.Name, err)
 		} else {
-			resp.Body.Close()
-			fmt.Printf("[INFO] Crew member %s returned to base.", crew.Name)
+			resp, err = http.Post(fmt.Sprintf("%s/crew/return", crewServiceURL), "application/json", bytes.NewBuffer(data))
+			if err != nil {
+				fmt.Printf("[ERROR] Failed to return crew member %s to base:%s", crew.Name, err)
+			} else {
+				resp.Body.Close()
+				fmt.Printf("[INFO] Crew member %s returned to base.", crew.Name)
+			}
 		}
 
 		// Return ship to base
 		fmt.Println("[INFO] Returning ship to base")
-		data, _ = json.Marshal(ship)
-		resp, err = http.Post(fmt.Sprintf("%s/ship/return", shipServiceURL), "application/json", bytes.NewBuffer(data))
+		data, err = json.Marshal(ship)
 		if err != nil {
-			fmt.Println("[ERROR] Failed to return ship:", err)
+			fmt.Printf("[ERROR] Failed to marshal ship %s: %v\n", ship.Name, err)
 		} else {
-			resp.Body.Close()
-			fmt.Println("[INFO] ship returned to base.")
+			resp, err = http.Post(fmt.Sprintf("%s/ship/return", shipServiceURL), "application/json", bytes.NewBuffer(data))
+			if err != nil {
+				fmt.Println("[ERROR] Failed to return ship:", err)
+			} else {
+				resp.Body.Close()
+				fmt.Println("[INFO] ship returned to base.")
+			}
 		}
 	}(pkg.ID, crew, ship)
 
@@ -298,5 +314,7 @@ func main() {
 	}()
 
 	fmt.Println("[INFO] DeliveryService running on :8080")
-	http.ListenAndServe(":8080", deliveryMux)
+	if err := http.ListenAndServe(":8080", deliveryMux); err != nil {
+		log.Fatalf("server error: %v", err)
+	}
 }
