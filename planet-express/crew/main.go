@@ -17,18 +17,20 @@ type CrewMember struct {
 	Name      string     `json:"name"`
 	Role      string     `json:"role"`
 	Available bool       `json:"available"`
+	Risk      float64    `json:"risk"`
 	Lock      sync.Mutex `json:"-"`
 }
 
 type CrewResponse struct {
-	Name string `json:"name"`
+	Name string  `json:"name"`
+	Risk float64 `json:"risk"`
 }
 
 var (
 	crew = []CrewMember{
-		{"Fry", "Delivery Boy", true, sync.Mutex{}},
-		{"Leela", "Captain", true, sync.Mutex{}},
-		{"Bender", "Bending Unit", true, sync.Mutex{}},
+		{Name: "Fry", Role: "Delivery Boy", Available: true, Risk: 0.25},
+		{Name: "Leela", Role: "Captain", Available: true, Risk: 0.05},
+		{Name: "Bender", Role: "Bending Unit", Available: true, Risk: 0.40},
 	}
 
 	requestsReceived = prometheus.NewCounterVec(
@@ -56,10 +58,10 @@ func reserveCrew(w http.ResponseWriter, r *http.Request) {
 		if crew[i].Lock.TryLock() {
 			if crew[i].Available {
 				found = true
-				slog.Info("Crew member is available", "name", crew[i].Name)
+				slog.Info("Crew member is available", "name", crew[i].Name, "risk", crew[i].Risk)
 				crew[i].Available = false
 				slog.Info("Crew member has been reserved", "name", crew[i].Name)
-				json.NewEncoder(w).Encode(CrewResponse{crew[i].Name})
+				json.NewEncoder(w).Encode(CrewResponse{Name: crew[i].Name, Risk: crew[i].Risk})
 			}
 			// Need to unlock the mutex before we return
 			crew[i].Lock.Unlock()
