@@ -22,15 +22,33 @@ spec:
               value: "INFO"
           ports:
             - containerPort: 8080
+            - containerPort: 2112
+              name: metrics
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: package-service
   namespace: planet-express
+  labels:
+    app: package-service
 spec:
   selector:
     app: package-service
   ports:
     - port: 80
       targetPort: 8080
+    - port: 2112
+      name: metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: package-service
+  namespace: planet-express
+spec:
+  selector:
+    matchLabels:
+      app: package-service
+  endpoints:
+    - port: metrics
