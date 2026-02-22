@@ -20,12 +20,14 @@ import (
 )
 
 type CrewMember struct {
-	Name string `json:"name"`
+	Name string  `json:"name"`
+	Risk float64 `json:"risk"`
 }
 
 type ShipInfo struct {
-	Name      string `json:"name"`
-	Available bool   `json:"available"`
+	Name      string  `json:"name"`
+	Available bool    `json:"available"`
+	Speed     float64 `json:"speed"`
 }
 
 type Package struct {
@@ -53,6 +55,46 @@ var (
 	shipServiceURL    = getEnv("SHIP_SERVICE_URL", "http://ship-service")
 	packageServiceURL = getEnv("PACKAGE_SERVICE_URL", "http://package-service")
 
+	// distances from Planet Express HQ to known destinations, in light-years
+	distances = map[string]float64{
+		"New New York":        10,
+		"Sewer City":          10,
+		"Luna Park":           15,
+		"Mars Vegas":          25,
+		"Central Bureaucracy": 30,
+		"Doop Headquarters":   40,
+		"Neptune":             50,
+		"Robonia":             60,
+		"Omicron Persei 8":    100,
+	}
+
+	// crew-specific failure reasons for when risk rolls against a delivery
+	failureReasons = map[string][]string{
+		"Fry": {
+			"Fry got distracted by a Slurm vending machine and left the package behind.",
+			"Fry accidentally used the package as a pillow and it was crushed beyond recognition.",
+			"Fry pressed the wrong button and ejected the cargo into deep space.",
+			"Fry tried to impress a beautiful alien and gave away the package as a gift.",
+		},
+		"Leela": {
+			"Space pirates boarded the ship; Leela fought them off heroically but the package didn't survive.",
+			"A rogue autopilot engaged and steered into a dark matter cluster, destroying the cargo.",
+			"Leela's mutant ancestry triggered a customs false-positive and the package was confiscated.",
+		},
+		"Bender": {
+			"Bender sold the package's contents to finance an ill-advised robot casino scheme.",
+			"Bender used the ship as a giant margarita mixer and the package was collateral damage.",
+			"Bender got distracted stealing from a museum and forgot the delivery entirely.",
+			"Bender decided he deserved a tip and pawned the package instead.",
+		},
+	}
+
+	genericFailureReasons = []string{
+		"The delivery was intercepted by Mom's Friendly Robot Company operatives.",
+		"A space bee infestation forced an emergency landing and the package was lost.",
+		"The package was confiscated by the Democratic Order of Planets as contraband.",
+	}
+
 	requestsReceived = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "planet_express_delivery_requests_received_total",
@@ -75,6 +117,20 @@ func getEnv(key, def string) string {
 		return val
 	}
 	return def
+}
+
+func calcDistance(address string) float64 {
+	if d, ok := distances[address]; ok {
+		return d
+	}
+	return 30 // default mid-range distance for unknown destinations
+}
+
+func deliveryFailureReason(crewName string) string {
+	if reasons, ok := failureReasons[crewName]; ok {
+		return reasons[rand.IntN(len(reasons))]
+	}
+	return genericFailureReasons[rand.IntN(len(genericFailureReasons))]
 }
 
 func requestAvailableCrew() (CrewMember, int, error) {
@@ -102,7 +158,7 @@ func requestAvailableCrew() (CrewMember, int, error) {
 	if err := json.Unmarshal(bodyBytes, &crew); err != nil {
 		return CrewMember{}, resp.StatusCode, err
 	}
-	slog.Debug("Unmarshaled crew member", "name", crew.Name)
+	slog.Debug("Unmarshaled crew member", "name", crew.Name, "risk", crew.Risk)
 
 	return crew, http.StatusOK, nil
 }
@@ -132,7 +188,7 @@ func reserveShip() (ShipInfo, int, error) {
 	if err := json.Unmarshal(bodyBytes, &ship); err != nil {
 		return ShipInfo{}, resp.StatusCode, err
 	}
-	slog.Debug("Unmarshaled ship info", "name", ship.Name)
+	slog.Debug("Unmarshaled ship info", "name", ship.Name, "speed", ship.Speed)
 
 	return ship, resp.StatusCode, nil
 }
@@ -232,19 +288,30 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 	}
 	slog.Info("Delivery ticket created", "crew", ticket.Crew.Name, "ship", ticket.Ship.Name, "package_id", ticket.Package.ID)
 
-	// Simulate random delivery time
-	go func(pkgID string, crew CrewMember, ship ShipInfo) {
-		delay := time.Duration(rand.IntN(5)+1) * time.Second
-		slog.Info("Ship in-flight", "delay", delay, "package_id", pkgID)
+	go func(pkgID string, address string, crew CrewMember, ship ShipInfo) {
+		distance := calcDistance(address)
+		delay := time.Duration(float64(time.Second) * distance / ship.Speed)
+		slog.Info("Ship in-flight", "delay", delay, "package_id", pkgID, "distance_ly", distance, "ship_speed", ship.Speed)
 		time.Sleep(delay)
 
-		// Mark package as delivered
-		resp, err := http.Get(fmt.Sprintf("%s/packages/update?id=%s&status=delivered", packageServiceURL, pkgID))
-		if err != nil {
-			slog.Error("Failed to update package status", "err", err)
+		// Determine delivery outcome based on crew risk
+		if rand.Float64() < crew.Risk {
+			reason := deliveryFailureReason(crew.Name)
+			slog.Warn("Delivery failed", "package_id", pkgID, "crew", crew.Name, "reason", reason)
+			resp, err := http.Get(fmt.Sprintf("%s/packages/update?id=%s&status=failed", packageServiceURL, pkgID))
+			if err != nil {
+				slog.Error("Failed to update package status to failed", "err", err)
+			} else {
+				resp.Body.Close()
+			}
 		} else {
-			resp.Body.Close()
-			slog.Info("Package marked as delivered", "package_id", pkgID)
+			resp, err := http.Get(fmt.Sprintf("%s/packages/update?id=%s&status=delivered", packageServiceURL, pkgID))
+			if err != nil {
+				slog.Error("Failed to update package status", "err", err)
+			} else {
+				resp.Body.Close()
+				slog.Info("Package marked as delivered", "package_id", pkgID)
+			}
 		}
 
 		// Delete package from map to prevent boundless growth
@@ -252,7 +319,7 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			slog.Error("Failed to create delete request", "err", err)
 		} else {
-			resp, err = http.DefaultClient.Do(deleteReq)
+			resp, err := http.DefaultClient.Do(deleteReq)
 			if err != nil {
 				slog.Error("Failed to delete package from list", "err", err)
 			} else {
@@ -267,7 +334,7 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			slog.Error("Failed to marshal crew member", "name", crew.Name, "err", err)
 		} else {
-			resp, err = http.Post(fmt.Sprintf("%s/crew/return", crewServiceURL), "application/json", bytes.NewBuffer(data))
+			resp, err := http.Post(fmt.Sprintf("%s/crew/return", crewServiceURL), "application/json", bytes.NewBuffer(data))
 			if err != nil {
 				slog.Error("Failed to return crew member to base", "name", crew.Name, "err", err)
 			} else {
@@ -282,7 +349,7 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			slog.Error("Failed to marshal ship", "name", ship.Name, "err", err)
 		} else {
-			resp, err = http.Post(fmt.Sprintf("%s/ship/return", shipServiceURL), "application/json", bytes.NewBuffer(data))
+			resp, err := http.Post(fmt.Sprintf("%s/ship/return", shipServiceURL), "application/json", bytes.NewBuffer(data))
 			if err != nil {
 				slog.Error("Failed to return ship", "err", err)
 			} else {
@@ -290,7 +357,7 @@ func handleDelivery(w http.ResponseWriter, r *http.Request) {
 				slog.Info("Ship returned to base")
 			}
 		}
-	}(pkg.ID, crew, ship)
+	}(pkg.ID, pkg.Address, crew, ship)
 
 	// Send ticket to requester
 	w.Header().Set("Content-Type", "application/json")

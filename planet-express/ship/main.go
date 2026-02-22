@@ -16,19 +16,21 @@ import (
 type Ship struct {
 	Name      string     `json:"name"`
 	Available bool       `json:"available"`
+	Speed     float64    `json:"speed"`
 	Lock      sync.Mutex `json:"-"`
 }
 
 type ShipInfo struct {
-	Name      string `json:"name"`
-	Available bool   `json:"available"`
+	Name      string  `json:"name"`
+	Available bool    `json:"available"`
+	Speed     float64 `json:"speed"`
 }
 
 var (
 	fleet = []Ship{
-		{"Old Bessie", true, sync.Mutex{}},
-		{"The Dinghy", true, sync.Mutex{}},
-		{"Leela's Cruiser", true, sync.Mutex{}},
+		{Name: "Old Bessie", Available: true, Speed: 10},
+		{Name: "The Dinghy", Available: true, Speed: 15},
+		{Name: "Leela's Cruiser", Available: true, Speed: 20},
 	}
 
 	requestsReceived = prometheus.NewCounterVec(
@@ -68,7 +70,7 @@ func getStatus(w http.ResponseWriter, r *http.Request) {
 		if fleet[i].Lock.TryLock() {
 			if fleet[i].Name == ship {
 				found = true
-				json.NewEncoder(w).Encode(ShipInfo{fleet[i].Name, fleet[i].Available})
+				json.NewEncoder(w).Encode(ShipInfo{Name: fleet[i].Name, Available: fleet[i].Available, Speed: fleet[i].Speed})
 			}
 
 			fleet[i].Lock.Unlock()
@@ -92,10 +94,10 @@ func reserveShip(w http.ResponseWriter, r *http.Request) {
 		if fleet[i].Lock.TryLock() {
 			if fleet[i].Available {
 				found = true
-				slog.Info("Ship is available", "name", fleet[i].Name)
+				slog.Info("Ship is available", "name", fleet[i].Name, "speed", fleet[i].Speed)
 				fleet[i].Available = false
 				slog.Info("Ship has been reserved", "name", fleet[i].Name)
-				json.NewEncoder(w).Encode(ShipInfo{fleet[i].Name, fleet[i].Available})
+				json.NewEncoder(w).Encode(ShipInfo{Name: fleet[i].Name, Available: fleet[i].Available, Speed: fleet[i].Speed})
 			}
 
 			fleet[i].Lock.Unlock()
