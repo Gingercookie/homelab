@@ -3,9 +3,9 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"sync"
 )
 
@@ -27,7 +27,7 @@ var fleet = []Ship{
 }
 
 func getStatus(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("[INFO] Received request for ship status")
+	slog.Info("Received request for ship status")
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -57,16 +57,16 @@ func getStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func reserveShip(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("[INFO] Received request to reserve ship")
+	slog.Info("Received request to reserve ship")
 
 	found := false
 	for i := range fleet {
 		if fleet[i].Lock.TryLock() {
 			if fleet[i].Available {
 				found = true
-				fmt.Printf("[INFO] Ship %s is available\n", fleet[i].Name)
+				slog.Info("Ship is available", "name", fleet[i].Name)
 				fleet[i].Available = false
-				fmt.Printf("[INFO] Ship %s has been reserved and is no longer available\n", fleet[i].Name)
+				slog.Info("Ship has been reserved", "name", fleet[i].Name)
 				json.NewEncoder(w).Encode(ShipInfo{fleet[i].Name, fleet[i].Available})
 			}
 
@@ -77,12 +77,12 @@ func reserveShip(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	fmt.Println("[WARN] No ship is available")
+	slog.Warn("No ship is available")
 	http.Error(w, "No ship available", http.StatusServiceUnavailable)
 }
 
 func returnShip(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("[INFO] Received request to return ship")
+	slog.Info("Received request to return ship")
 
 	var ship ShipInfo
 	if err := json.NewDecoder(r.Body).Decode(&ship); err != nil {
@@ -92,11 +92,11 @@ func returnShip(w http.ResponseWriter, r *http.Request) {
 
 	for i := range fleet {
 		if fleet[i].Name == ship.Name {
-			fmt.Printf("[INFO] Returning ship %s to base\n", fleet[i].Name)
+			slog.Info("Returning ship to base", "name", fleet[i].Name)
 			fleet[i].Lock.Lock()
 			fleet[i].Available = true
 			fleet[i].Lock.Unlock()
-			fmt.Printf("[INFO] Ship %s has been returned and is now available\n", fleet[i].Name)
+			slog.Info("Ship returned and is now available", "name", fleet[i].Name)
 			w.WriteHeader(http.StatusOK)
 			return
 		}
@@ -106,10 +106,21 @@ func returnShip(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	levelStr := os.Getenv("LOG_LEVEL")
+	if levelStr == "" {
+		levelStr = "INFO"
+	}
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(levelStr)); err != nil {
+		level = slog.LevelInfo
+	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
+
 	http.HandleFunc("/ship/status", getStatus)
 	http.HandleFunc("/ship/reserve", reserveShip)
 	http.HandleFunc("/ship/return", returnShip)
 	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatalf("server error: %v", err)
+		slog.Error("server error", "err", err)
+		os.Exit(1)
 	}
 }

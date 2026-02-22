@@ -17,6 +17,9 @@ spec:
       containers:
         - name: crew-service
           image: wilgrimthepilgrim/crew:latest
+          env:
+            - name: LOG_LEVEL
+              value: "INFO"
           ports:
             - containerPort: 8080
 ---

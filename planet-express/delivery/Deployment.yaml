@@ -24,6 +24,8 @@ spec:
               value: "http://ship-service"
             - name: PACKAGE_SERVICE_URL
               value: "http://package-service"
+            - name: LOG_LEVEL
+              value: "INFO"
           ports:
             - containerPort: 8080
               name: http

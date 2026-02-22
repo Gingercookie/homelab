@@ -17,6 +17,9 @@ spec:
       containers:
         - name: package-service
           image: wilgrimthepilgrim/package:latest
+          env:
+            - name: LOG_LEVEL
+              value: "INFO"
           ports:
             - containerPort: 8080
 ---

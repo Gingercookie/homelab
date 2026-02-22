@@ -4,8 +4,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"log"
+	"log/slog"
 	"math/rand/v2"
 	"net/http"
 	"os"
@@ -71,15 +70,22 @@ func sendDelivery() {
 
 	resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(data))
 	if err != nil {
-		fmt.Printf("[ERROR] Failed to send delivery: %v\n", err)
+		slog.Error("Failed to send delivery", "err", err)
 		return
 	}
 	defer resp.Body.Close()
 
-	fmt.Printf("[INFO] Sent delivery: %+v | Status: %d\n", req, resp.StatusCode)
+	slog.Info("Sent delivery", "recipient", req.Recipient, "address", req.Address, "contents", req.Contents, "status", resp.StatusCode)
 }
 
 func main() {
+	levelStr := getEnv("LOG_LEVEL", "INFO")
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(levelStr)); err != nil {
+		level = slog.LevelInfo
+	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
+
 	interval := 1 * time.Second
 	if val, ok := os.LookupEnv("INTERVAL_SECONDS"); ok {
 		if val, err := time.ParseDuration(val + "s"); err == nil {
@@ -91,14 +97,15 @@ func main() {
 	http.Handle("/metrics", promhttp.Handler())
 
 	go func() {
-		fmt.Println("[INFO] Prometheus metrics endpoint running on :2112")
+		slog.Info("Prometheus metrics endpoint running", "addr", ":2112")
 		err := http.ListenAndServe(":2112", nil)
 		if err != nil {
-			log.Fatalln(err)
+			slog.Error("metrics server error", "err", err)
+			os.Exit(1)
 		}
 	}()
 
-	fmt.Printf("[INFO] Delivery Traffic Generator running, sending requests to %s every %v\n", apiURL, interval)
+	slog.Info("Delivery Traffic Generator running", "url", apiURL, "interval", interval)
 	for {
 		sendDelivery()
 		time.Sleep(interval)

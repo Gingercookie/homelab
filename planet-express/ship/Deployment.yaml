@@ -17,6 +17,9 @@ spec:
       containers:
         - name: ship-service
           image: wilgrimthepilgrim/ship:latest
+          env:
+            - name: LOG_LEVEL
+              value: "INFO"
           ports:
             - containerPort: 8080
           imagePullPolicy: Always

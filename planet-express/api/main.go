@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -43,7 +43,7 @@ func getEnv(key, def string) string {
 
 // handleNewDelivery forwards delivery requests to the DeliveryService
 func handleNewDelivery(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("[INFO] Got request for new delivery")
+	slog.Info("Got request for new delivery")
 
 	requestsReceived.WithLabelValues(r.Method).Inc()
 
@@ -60,7 +60,7 @@ func handleNewDelivery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("[INFO] Dispatching request to delivery-service at %s\n", deliveryServiceURL)
+	slog.Info("Dispatching request to delivery-service", "url", deliveryServiceURL)
 	resp, err := http.Post(fmt.Sprintf("%s/deliveries", deliveryServiceURL), "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		http.Error(w, "Error contacting DeliveryService: "+err.Error(), http.StatusServiceUnavailable)
@@ -71,7 +71,7 @@ func handleNewDelivery(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(resp.StatusCode)
 	if _, err = io.Copy(w, resp.Body); err != nil {
-		log.Printf("[ERROR] Failed to copy response body: %v", err)
+		slog.Error("Failed to copy response body", "err", err)
 	}
 	requestsProcessed.WithLabelValues(http.MethodPost, strconv.Itoa(resp.StatusCode)).Inc()
 }
@@ -81,6 +81,13 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	levelStr := getEnv("LOG_LEVEL", "INFO")
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(levelStr)); err != nil {
+		level = slog.LevelInfo
+	}
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
+
 	apiMux := http.NewServeMux()
 	apiMux.HandleFunc("/deliveries", handleNewDelivery)
 	apiMux.HandleFunc("/health", healthCheck)
@@ -92,15 +99,17 @@ func main() {
 	metricsMux.Handle("/metrics", promhttp.Handler())
 
 	go func() {
-		fmt.Println("[INFO] Prometheus metrics endpoint running on :2112")
+		slog.Info("Prometheus metrics endpoint running", "addr", ":2112")
 		err := http.ListenAndServe(":2112", metricsMux)
 		if err != nil {
-			log.Fatalln(err)
+			slog.Error("metrics server error", "err", err)
+			os.Exit(1)
 		}
 	}()
 
-	fmt.Println("PlanetExpressAPI running on :8080")
+	slog.Info("PlanetExpressAPI running", "addr", ":8080")
 	if err := http.ListenAndServe(":8080", apiMux); err != nil {
-		log.Fatalf("server error: %v", err)
+		slog.Error("server error", "err", err)
+		os.Exit(1)
 	}
 }
