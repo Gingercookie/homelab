@@ -7,7 +7,11 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Package struct {
@@ -21,11 +25,29 @@ type Package struct {
 var (
 	packages = make(map[string]Package)
 	mu       sync.Mutex
+
+	requestsReceived = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "planet_express_package_requests_received_total",
+			Help: "The total number of requests received by the package service",
+		},
+		[]string{"method"},
+	)
+
+	requestsProcessed = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "planet_express_package_requests_processed_total",
+			Help: "The total number of requests handled (processed) by the package service",
+		},
+		[]string{"method", "code"},
+	)
 )
 
 func createPackage(w http.ResponseWriter, r *http.Request) {
+	requestsReceived.WithLabelValues(r.Method).Inc()
 	var pkg Package
 	if err := json.NewDecoder(r.Body).Decode(&pkg); err != nil {
+		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(http.StatusBadRequest)).Inc()
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -34,37 +56,45 @@ func createPackage(w http.ResponseWriter, r *http.Request) {
 	pkg.ID = randomID()
 	pkg.Status = "pending"
 	packages[pkg.ID] = pkg
+	requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(http.StatusCreated)).Inc()
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(pkg)
 }
 
-func listPackages(w http.ResponseWriter, _ *http.Request) {
+func listPackages(w http.ResponseWriter, r *http.Request) {
+	requestsReceived.WithLabelValues(r.Method).Inc()
 	mu.Lock()
 	defer mu.Unlock()
 	list := make([]Package, 0, len(packages))
 	for _, pkg := range packages {
 		list = append(list, pkg)
 	}
+	requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(http.StatusOK)).Inc()
 	json.NewEncoder(w).Encode(list)
 }
 
 func getPackage(w http.ResponseWriter, r *http.Request) {
+	requestsReceived.WithLabelValues(r.Method).Inc()
 	slog.Info("Received request to get a package")
 	id := r.URL.Query().Get("id")
 	mu.Lock()
 	defer mu.Unlock()
 	if pkg, ok := packages[id]; ok {
+		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(http.StatusOK)).Inc()
 		json.NewEncoder(w).Encode(pkg)
 	} else {
+		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(http.StatusNotFound)).Inc()
 		http.NotFound(w, r)
 	}
 }
 
 func updatePackageStatus(w http.ResponseWriter, r *http.Request) {
+	requestsReceived.WithLabelValues(r.Method).Inc()
 	slog.Info("Received request to update package status")
 	id := r.URL.Query().Get("id")
 	status := r.URL.Query().Get("status")
 	if status == "" {
+		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(http.StatusBadRequest)).Inc()
 		http.Error(w, "Missing status", http.StatusBadRequest)
 		return
 	}
@@ -73,22 +103,27 @@ func updatePackageStatus(w http.ResponseWriter, r *http.Request) {
 	if pkg, ok := packages[id]; ok {
 		pkg.Status = status
 		packages[id] = pkg
+		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(http.StatusOK)).Inc()
 		json.NewEncoder(w).Encode(pkg)
 		slog.Info("Successfully updated package status", "id", pkg.ID, "status", status)
 	} else {
+		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(http.StatusNotFound)).Inc()
 		http.NotFound(w, r)
 		slog.Warn("Package was not found", "id", id)
 	}
 }
 
 func deletePackage(w http.ResponseWriter, r *http.Request) {
+	requestsReceived.WithLabelValues(r.Method).Inc()
 	slog.Info("Received request to delete package")
 	if r.Method != http.MethodDelete {
+		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(http.StatusMethodNotAllowed)).Inc()
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	id := r.URL.Query().Get("id")
 	if id == "" {
+		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(http.StatusBadRequest)).Inc()
 		http.Error(w, "Missing package id in delete request", http.StatusBadRequest)
 		return
 	}
@@ -96,11 +131,13 @@ func deletePackage(w http.ResponseWriter, r *http.Request) {
 	mu.Lock()
 	defer mu.Unlock()
 	if _, ok := packages[id]; !ok {
+		requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(http.StatusNotFound)).Inc()
 		http.NotFound(w, r)
 		return
 	}
 
 	delete(packages, id)
+	requestsProcessed.WithLabelValues(r.Method, strconv.Itoa(http.StatusOK)).Inc()
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -124,17 +161,34 @@ func main() {
 	}
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
 
-	http.HandleFunc("/packages", func(w http.ResponseWriter, r *http.Request) {
+	prometheus.MustRegister(requestsReceived)
+	prometheus.MustRegister(requestsProcessed)
+
+	packageMux := http.NewServeMux()
+	packageMux.HandleFunc("/packages", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			createPackage(w, r)
 		} else {
 			listPackages(w, r)
 		}
 	})
-	http.HandleFunc("/packages/get", getPackage)
-	http.HandleFunc("/packages/update", updatePackageStatus)
-	http.HandleFunc("/packages/delete", deletePackage)
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	packageMux.HandleFunc("/packages/get", getPackage)
+	packageMux.HandleFunc("/packages/update", updatePackageStatus)
+	packageMux.HandleFunc("/packages/delete", deletePackage)
+
+	metricsMux := http.NewServeMux()
+	metricsMux.Handle("/metrics", promhttp.Handler())
+
+	go func() {
+		slog.Info("Prometheus metrics endpoint running", "addr", ":2112")
+		if err := http.ListenAndServe(":2112", metricsMux); err != nil {
+			slog.Error("metrics server error", "err", err)
+			os.Exit(1)
+		}
+	}()
+
+	slog.Info("PackageService running", "addr", ":8080")
+	if err := http.ListenAndServe(":8080", packageMux); err != nil {
 		slog.Error("server error", "err", err)
 		os.Exit(1)
 	}
